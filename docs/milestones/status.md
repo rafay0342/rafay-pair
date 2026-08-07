@@ -118,6 +118,18 @@ The iOS microphone usage string was rewritten while building this. It previously
 
 **Surfaces.** Together mode, the memory controls, and the voice session are built natively on all three clients — SwiftUI (`Features/Together/TogetherView.swift`), Compose (`ui/together/TogetherScreen.kt`), and React (`pages/TogetherPage.tsx`, `pages/AssistantPage.tsx`). Voice runs on the phones, where the microphone state is visible for the whole session and the disclosure stays on screen for its whole duration rather than appearing once and scrolling away; the Web client says so and offers the memory controls, because a user is entitled to read and delete what is remembered about them in the same place they read anything else about their account.
 
+## Final checklist — production readiness
+
+Status: all twenty-six items of master specification §30 checked on 2026-08-07. Twenty-two pass with a command, a test, or a structural property behind them. Four are open, and none of the four is open because it was skipped: a signed IPA needs an Apple ID that only the account holder can add, real-device pulse validation needs a real fingertip and a reference reading, a live voice session needs a provider account, and metrics are the one place where the honest answer is "partly built".
+
+The evidence, item by item, is in [the final checklist](./final-checklist.md).
+
+Checking it turned up four user-facing statements that were untrue and are now fixed: the Web capability map called camera pose unsupported in a release that ships it, the home page denied showing any derived number while showing repetition counts and calories, all three clients offered a blood-pressure entry and a Health import that do not exist, and the iOS microphone string promised audio is never uploaded after voice sessions made that false. Two of them are now held in place by tests rather than by care.
+
+One guarantee gained a real check rather than a restatement. "Camera/mic cannot be remotely activated" is a claim about reachability, so `pnpm run verify:invariants` reads every module that consumes something the network delivers — realtime clients, push handlers, background sync, the service worker — along with every server module, and fails if any of them so much as names a capture API. A module that cannot name the camera cannot turn it on, whatever message reaches it. The check was confirmed to fail when a capture call is planted in the service worker, and it runs in `pnpm verify` and in CI.
+
+"Pair disconnect revokes all partner access" gained the same treatment. It was covered for care alone; the integration test now proves the partner also loses the pulse snapshot and the together session, asserting each surface separately so a future surface that forgets the pair check fails there rather than passing on care's strength.
+
 ## Build and device setup
 
 Three things previously listed as blockers are now handled in the repository rather than left to manual steps.

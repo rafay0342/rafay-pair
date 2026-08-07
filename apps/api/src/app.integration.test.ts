@@ -1517,6 +1517,138 @@ describe("Milestone 1 API", () => {
     expect(afterEnd.statusCode).toBe(404);
   });
 
+  it("closes every partner surface when the pair is disconnected, not only care", async () => {
+    // Its own client address: the suite shares one per-IP rate-limit budget,
+    // and a test that quietly spends another account's allowance makes a later
+    // test fail for a reason that has nothing to do with it.
+    const revocationAddress = "198.51.100.7";
+    const owner = await registerNative(
+      "revoke-owner@example.test",
+      "Revoke Owner",
+    );
+    const partner = await registerNative(
+      "revoke-partner@example.test",
+      "Revoke Partner",
+    );
+    const created = await app.inject({
+      method: "POST",
+      remoteAddress: revocationAddress,
+      url: "/v1/pairs/current",
+      headers: nativeHeaders(owner.accessToken),
+    });
+    const pair = created.json().pair as { joinCode: string };
+    await app.inject({
+      method: "POST",
+      remoteAddress: revocationAddress,
+      url: "/v1/pairs/join",
+      headers: nativeHeaders(partner.accessToken),
+      payload: { code: pair.joinCode },
+    });
+
+    for (const account of [owner, partner]) {
+      await app.inject({
+        method: "PUT",
+        remoteAddress: revocationAddress,
+        url: "/v1/consents",
+        headers: nativeHeaders(account.accessToken),
+        payload: {
+          grants: [
+            { capability: "pulse_snapshots", granted: true },
+            { capability: "workout_progress", granted: true },
+          ],
+        },
+      });
+    }
+
+    await app.inject({
+      method: "POST",
+      remoteAddress: revocationAddress,
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: {
+        bpm: 68.2,
+        confidenceBand: "high",
+        qualityBand: "good",
+        measuredAt: new Date().toISOString(),
+      },
+    });
+    const invited = await app.inject({
+      method: "POST",
+      remoteAddress: revocationAddress,
+      url: "/v1/together-sessions",
+      headers: nativeHeaders(owner.accessToken),
+      payload: { activity: "squat" },
+    });
+    expect(invited.statusCode).toBe(201);
+
+    // Both surfaces are live for the partner while the pair is active.
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          remoteAddress: revocationAddress,
+          url: "/v1/pulse-snapshots/partner",
+          headers: nativeHeaders(partner.accessToken),
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          remoteAddress: revocationAddress,
+          url: "/v1/together-sessions/current",
+          headers: nativeHeaders(partner.accessToken),
+        })
+      ).json().session,
+    ).not.toBeNull();
+
+    const disconnected = await app.inject({
+      method: "DELETE",
+      remoteAddress: revocationAddress,
+      url: "/v1/pairs/current",
+      headers: nativeHeaders(owner.accessToken),
+    });
+    expect(disconnected.statusCode).toBe(204);
+
+    // "Revokes all partner access" has to mean every surface, including the
+    // ones added after the guarantee was first written. Each is checked
+    // separately so a new surface that forgets the pair check fails here rather
+    // than passing on the strength of care alone.
+    const partnerPulse = await app.inject({
+      method: "GET",
+      remoteAddress: revocationAddress,
+      url: "/v1/pulse-snapshots/partner",
+      headers: nativeHeaders(partner.accessToken),
+    });
+    expect(partnerPulse.statusCode).not.toBe(200);
+
+    const partnerTogether = await app.inject({
+      method: "GET",
+      remoteAddress: revocationAddress,
+      url: "/v1/together-sessions/current",
+      headers: nativeHeaders(partner.accessToken),
+    });
+    expect(
+      partnerTogether.statusCode === 200
+        ? partnerTogether.json().session
+        : null,
+    ).toBeNull();
+
+    const partnerCare = await app.inject({
+      method: "POST",
+      remoteAddress: revocationAddress,
+      url: "/v1/care-requests",
+      headers: nativeHeaders(partner.accessToken),
+      payload: {
+        clientRequestId: crypto.randomUUID(),
+        kind: "check_in",
+        message: "Are you there?",
+      },
+    });
+    expect(partnerCare.statusCode).toBe(409);
+  });
+
   it("admits one AI voice socket per session, only after the disclosure was announced", async () => {
     const user = await registerNative("ai-voice@example.test", "AI Voice");
 

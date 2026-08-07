@@ -134,8 +134,9 @@ export function VitalsPage(): React.JSX.Element {
           measure it, and no amount of processing changes that.
         </p>
         <p>
-          If you track it, enter a reading from a real cuff — that and an
-          imported health record are the only sources this app accepts.
+          If you track it, use the cuff and the app that came with it. RafayPair
+          holds no blood pressure value of its own, and does not read one from a
+          health record.
         </p>
       </section>
     </div>

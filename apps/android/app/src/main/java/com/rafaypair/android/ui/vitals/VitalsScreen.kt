@@ -585,8 +585,9 @@ private fun BloodPressureCard() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "If you track it, enter a reading from a real cuff or import it from Health " +
-                    "Connect — those are the only sources this app accepts.",
+                "If you track it, use the cuff and the app that came with it. RafayPair " +
+                    "holds no blood pressure value of its own, and does not read one from " +
+                    "Health Connect.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

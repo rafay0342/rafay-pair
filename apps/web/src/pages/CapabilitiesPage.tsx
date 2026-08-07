@@ -35,25 +35,43 @@ const capabilities: readonly CapabilityRow[] = [
     capability: "Browser push",
     state: "unsupported",
     detail:
-      "Push registration is not exposed in this foundation release. Keep RafayPair open for live care delivery.",
+      "Push registration is not exposed here. Keep RafayPair open for live care delivery, or use the phone apps.",
   },
   {
     capability: "Pose workouts",
-    state: "unsupported",
+    state: "limited",
     detail:
-      "Camera pose is not part of this foundation release. No camera control is shown or requested.",
+      "Camera pose runs in this browser, on this device. It needs the pose model, which is downloaded once and cached; without it the Move page says so rather than falling back to a server.",
+  },
+  {
+    capability: "Together mode",
+    state: "full",
+    detail:
+      "Invitations, shared sessions, and your partner's derived progress. The counting itself happens on whichever device is running the camera.",
   },
   {
     capability: "Phone-camera pulse",
     state: "unsupported",
     detail:
-      "The web foundation does not estimate pulse and never displays fabricated measurements.",
+      "Measuring a pulse needs the rear lens with its torch lit and its exposure locked, which browsers do not expose reliably. Nothing here estimates one, and no fabricated number is shown.",
   },
   {
-    capability: "Camera or microphone breathing estimate",
-    state: "experimental",
+    capability: "Guided breathing",
+    state: "full",
     detail:
-      "Reserved behind explicit future consent and quality gates; it is not enabled in this release.",
+      "The same deterministic schedule the phones use, so two partners can follow one rhythm. It needs no sensor and makes no physiological claim.",
+  },
+  {
+    capability: "Microphone breathing estimate",
+    state: "unsupported",
+    detail:
+      "Built on the phone apps, where the microphone can be held close and its state stays visible for the whole session. It is not offered here.",
+  },
+  {
+    capability: "Rafay AI voice",
+    state: "unsupported",
+    detail:
+      "Voice sessions run in the phone apps. What Rafay remembers is readable and deletable here, because that is yours to control wherever you are signed in.",
   },
   {
     capability: "HealthKit / Health Connect",

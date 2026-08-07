@@ -221,8 +221,10 @@ export function HomePage(): React.JSX.Element {
         <div>
           <strong>Scientifically honest by design</strong>
           <p>
-            This foundation release does not show physiological measurements.
-            RafayPair never invents health data.
+            Nothing here is a measurement. Repetitions are counted on the device
+            running the camera, calories are an estimate with a stated band, and
+            pulse is left to the phone apps rather than approximated in a
+            browser. RafayPair never invents health data.
           </p>
         </div>
         <Link to="/capabilities">Web capabilities</Link>

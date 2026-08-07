@@ -63,6 +63,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
+      # The camera/microphone reachability invariant spans all three
+      # clients and the server, so it runs once here rather than inside
+      # any one client's suite.
+      - run: pnpm run verify:invariants
       - run: pnpm --filter './packages/*' --filter './services/*' lint
       - run: pnpm --filter './packages/*' --filter './services/*' typecheck
       - run: pnpm --filter './packages/*' --filter './services/*' test
