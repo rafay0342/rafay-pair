@@ -1,27 +1,24 @@
 # On-device pose model assets
 
-The Web client runs pose inference locally. It needs two self-hosted assets,
-which are deliberately **not** committed — they are multi-megabyte binaries and
-belong to the build, not the source history:
+This directory holds the MediaPipe runtime and the BlazePose model that the Web
+client uses to detect body position locally. They are multi-megabyte binaries, so
+they belong to the build rather than to the source history and are not committed.
 
-```text
-public/models/mediapipe/wasm/                 MediaPipe Tasks Vision WASM runtime
-public/models/mediapipe/pose_landmarker_lite.task   BlazePose Lite model
-```
+**Nothing needs to be done by hand.** `pnpm --filter @rafay-pair/web build` and
+`dev` both run `scripts/fetch-pose-model.mjs` first, which copies the runtime out
+of the installed npm package and downloads the model, verifying its SHA-256
+against the pinned digest. Running it again is a no-op once the assets are there.
 
-Provision them during the build or deploy step:
+To fetch them explicitly:
 
 ```bash
-mkdir -p apps/web/public/models/mediapipe/wasm
-cp -R node_modules/@mediapipe/tasks-vision/wasm/. apps/web/public/models/mediapipe/wasm/
-curl -fsSL -o apps/web/public/models/mediapipe/pose_landmarker_lite.task \
-  https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task
+pnpm --filter @rafay-pair/web models
 ```
 
-Self-hosting is required, not optional: loading the runtime from a third-party
-CDN would leak a request on every workout and would break the offline promise of
-the installed PWA.
+Self-hosting is required rather than optional: loading the runtime from a
+third-party CDN would leak a request on every workout and would break the offline
+promise of the installed PWA.
 
-When the assets are absent the Move page reports that local pose is unavailable
-and stops. It never falls back to sending video to a server — there is no such
-path in the client.
+If the assets are missing — no network during a build, for instance — the build
+still succeeds and the Move page reports that local pose is unavailable. It never
+falls back to sending video to a server; there is no such path in the client.

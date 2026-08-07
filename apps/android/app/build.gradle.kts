@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.net.URI
 
@@ -10,10 +11,18 @@ plugins {
 
 fun quoted(value: String): String = "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
+// Values may also live in the git-ignored apps/android/local.properties, so a
+// developer can paste their Firebase and Play Integrity identifiers once instead
+// of exporting environment variables for every shell.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
 fun externalConfig(name: String): String = providers.gradleProperty(name)
     .orElse(providers.environmentVariable(name))
     .orNull
-    .orEmpty()
+    ?: localProperties.getProperty(name).orEmpty()
 
 val firebaseApplicationId = externalConfig("RAFAYPAIR_FIREBASE_APPLICATION_ID")
 val firebaseApiKey = externalConfig("RAFAYPAIR_FIREBASE_API_KEY")

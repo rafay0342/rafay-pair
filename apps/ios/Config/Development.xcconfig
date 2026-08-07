@@ -1,4 +1,6 @@
 #include "Base.xcconfig"
+// Optional, git-ignored, holds DEVELOPMENT_TEAM for real-device installs.
+#include? "Local.xcconfig"
 SWIFT_OPTIMIZATION_LEVEL = -Onone
 RAFAYPAIR_API_BASE_URL = https:/$()/dev-api.rafaypair.com
 RAFAYPAIR_APP_ATTEST_ENVIRONMENT = development

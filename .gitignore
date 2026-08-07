@@ -28,6 +28,7 @@ playwright-report/
 test-results/
 
 # Apple
+apps/ios/Config/Local.xcconfig
 DerivedData/
 build/
 *.xcarchive

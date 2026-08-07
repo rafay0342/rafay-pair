@@ -8,15 +8,16 @@
     "pnpm": ">=11.20.0 <12"
   },
   "scripts": {
-    "build": "tsc -b && vite build && node scripts/extract-source-maps.mjs && node scripts/verify-build.mjs",
+    "build": "node scripts/fetch-pose-model.mjs && tsc -b && vite build && node scripts/extract-source-maps.mjs && node scripts/verify-build.mjs",
     "clean": "rm -rf dist coverage .vite *.tsbuildinfo",
-    "dev": "vite",
+    "dev": "node scripts/fetch-pose-model.mjs && vite",
     "lint": "oxlint --type-aware --deny-warnings --report-unused-disable-directives .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:live": "playwright test",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "models": "node scripts/fetch-pose-model.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",
