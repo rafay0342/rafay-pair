@@ -18,15 +18,18 @@ import {
 } from "../audioBreathingEngine.js";
 import { estimateBreathing } from "../breathingEngine.js";
 import { estimateCalories } from "../calorieEngine.js";
+import { estimateFaceRppg } from "../faceRppgEngine.js";
 import { estimatePulse } from "../pulseEngine.js";
 import type {
   BreathingSample,
   CalorieEstimateInput,
+  FaceRppgSample,
   PulseSample,
 } from "../types.js";
 import {
   synthesiseBreathAudio,
   synthesiseBreathing,
+  synthesiseFaceRppg,
   synthesisePulse,
 } from "./synth.js";
 
@@ -323,6 +326,89 @@ const audioSessionCases: readonly {
   },
 ];
 
+const faceRppgCases: readonly {
+  name: string;
+  note: string;
+  samples: FaceRppgSample[];
+}[] = [
+  {
+    name: "well-lit-70bpm",
+    note: "A still, evenly lit face at a resting rate — the best case this mode has.",
+    samples: synthesiseFaceRppg({ bpm: 70, durationMs: 40_000, seed: 61 }),
+  },
+  {
+    name: "well-lit-96bpm",
+    note: "A slightly elevated rate under the same conditions.",
+    samples: synthesiseFaceRppg({ bpm: 96, durationMs: 35_000, seed: 62 }),
+  },
+  {
+    name: "changing-light",
+    note: "Illumination drifting across the session; the very thing rPPG mistakes for a pulse.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      lightingDrift: 0.16,
+      seed: 63,
+    }),
+  },
+  {
+    name: "too-dark",
+    note: "Below the usable luma floor; shot noise would swamp the signal.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      luma: 34,
+      seed: 64,
+    }),
+  },
+  {
+    name: "slight-head-drift",
+    note: "Small, slow head movement that the gate tolerates; the rate survives.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      headMotion: 0.05,
+      seed: 65,
+    }),
+  },
+  {
+    name: "restless-head",
+    note: "Movement fast enough to break region correspondence between frames.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      headMotion: 0.25,
+      seed: 69,
+    }),
+  },
+  {
+    name: "face-lost",
+    note: "The face leaves the frame part-way through.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      faceLostTailFraction: 0.4,
+      seed: 66,
+    }),
+  },
+  {
+    name: "session-too-short",
+    note: "Under the fifteen-second minimum.",
+    samples: synthesiseFaceRppg({ bpm: 72, durationMs: 9_000, seed: 67 }),
+  },
+  {
+    name: "no-pulsation",
+    note: "A still, lit face with no pulsatile component; nothing to report.",
+    samples: synthesiseFaceRppg({
+      bpm: 72,
+      durationMs: 35_000,
+      acAmplitude: 0,
+      noise: 0.2,
+      seed: 68,
+    }),
+  },
+];
+
 const goldenRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../../tests/golden",
@@ -459,6 +545,34 @@ for (const testCase of audioSessionCases) {
           hop.rms,
           hop.zeroCrossingRate,
           hop.peak,
+        ]),
+        expected,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+await mkdir(path.join(goldenRoot, "face-rppg"), { recursive: true });
+
+for (const testCase of faceRppgCases) {
+  const expected = estimateFaceRppg(testCase.samples, MEASURED_AT_MS);
+  await writeFile(
+    path.join(goldenRoot, "face-rppg", `${testCase.name}.json`),
+    `${JSON.stringify(
+      {
+        ...header,
+        name: testCase.name,
+        note: testCase.note,
+        measuredAtMs: MEASURED_AT_MS,
+        samples: testCase.samples.map((sample) => [
+          sample.timestampMs,
+          sample.green,
+          sample.luma,
+          sample.faceArea,
+          sample.faceCenterX,
+          sample.faceCenterY,
         ]),
         expected,
       },

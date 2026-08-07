@@ -75,6 +75,40 @@ export const BREATHING_MIN_PERIODICITY = 0.4;
 export const BREATHING_MAX_MOTION = 0.5;
 export const BREATHING_MIN_STABILITY = 0.3;
 
+// Face-camera rPPG, research mode — engines/pulse-estimation-spec/FACE_RPPG.md
+/**
+ * Off by default. Master specification §3.3 requires this mode to be
+ * experimental and removable; the flag is the single switch, and nothing outside
+ * the engine and its own surface references it.
+ */
+export const FACE_RPPG_ENABLED = false;
+
+export const FACE_DETREND_WINDOW_SAMPLES = 61;
+export const FACE_SMOOTH_WINDOW_SAMPLES = 7;
+export const FACE_MIN_BPM = 42;
+export const FACE_MAX_BPM = 180;
+
+export const FACE_MIN_LUMA = 60;
+export const FACE_MAX_LUMA = 235;
+export const FACE_MIN_AREA = 0.04;
+export const FACE_MAX_CENTER_SHIFT = 0.03;
+export const FACE_MAX_LUMA_SWING = 0.18;
+
+export const FACE_MOTION_SCALE = 4;
+export const FACE_STABILITY_WINDOW_SAMPLES = 240;
+export const FACE_STABILITY_STEP_SAMPLES = 60;
+export const FACE_STABILITY_SCALE = 15;
+export const FACE_CONFIDENCE_FULL_DURATION_MS = 40_000;
+
+export const FACE_MIN_DURATION_MS = 15_000;
+export const FACE_MAX_DURATION_MS = 60_000;
+/** Stricter than the fingertip path throughout: a weaker signal earns less
+ * benefit of the doubt, not more. */
+export const FACE_MIN_COVERAGE = 0.85;
+export const FACE_MIN_PERIODICITY = 0.6;
+export const FACE_MAX_MOTION = 0.3;
+export const FACE_MIN_STABILITY = 0.45;
+
 // Microphone breathing — engines/breathing-estimation-spec/MICROPHONE.md
 export const AUDIO_SAMPLE_RATE_HZ = 16_000;
 export const AUDIO_HIGH_PASS_HZ = 200;

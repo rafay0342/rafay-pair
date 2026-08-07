@@ -16,4 +16,5 @@ export {
   extractAudioHops,
   isHopUsable,
 } from "./audioBreathingEngine.js";
+export { estimateFaceRppg } from "./faceRppgEngine.js";
 export { isPulseFresh, pulseAgeMs } from "./freshness.js";

@@ -132,6 +132,65 @@ export interface BreathingPhaseState {
 }
 
 /**
+ * One frame of the face-derived rPPG signal.
+ *
+ * No image is retained: the capture layer produces these six numbers and
+ * releases the buffer, exactly as the fingertip path does.
+ */
+export interface FaceRppgSample {
+  readonly timestampMs: number;
+  /** Mean green channel over the facial region, `0…255`. */
+  readonly green: number;
+  /** Mean brightness of the same region; drives the lighting gate. */
+  readonly luma: number;
+  /** Detected face box area as a fraction of the frame. */
+  readonly faceArea: number;
+  readonly faceCenterX: number;
+  readonly faceCenterY: number;
+}
+
+export type FaceRppgRejectionReason =
+  | "tooShort"
+  | "faceNotStable"
+  | "unstableLighting"
+  | "excessiveMotion"
+  | "noPeriodicity"
+  | "unstable"
+  | "outOfRange";
+
+/**
+ * `experimental` is a literal on the type, so no consumer can strip the caveat.
+ * Specification §6 forbids this result from the heart visualization, the
+ * consent-gated share, and the stored latest pulse.
+ */
+export interface MeasuredFaceRppg {
+  readonly status: "measured";
+  readonly bpm: number;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly effectiveSampleRateHz: number;
+  readonly quality: SignalQuality;
+  readonly lumaSwing: number;
+  readonly confidence: number;
+  readonly confidenceBand: ConfidenceBand;
+  readonly source: "face_camera_rppg";
+  readonly kind: "app_estimated";
+  readonly experimental: true;
+  readonly measuredAtMs: number;
+}
+
+export interface RejectedFaceRppg {
+  readonly status: "rejected";
+  readonly reason: FaceRppgRejectionReason;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly quality: SignalQuality;
+  readonly lumaSwing: number;
+}
+
+export type FaceRppgResult = MeasuredFaceRppg | RejectedFaceRppg;
+
+/**
  * One hop of microphone-derived features.
  *
  * This type deliberately carries no audio. It is the boundary the retention rule

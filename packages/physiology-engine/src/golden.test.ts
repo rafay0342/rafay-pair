@@ -16,11 +16,23 @@ import {
   isHopUsable,
 } from "./audioBreathingEngine.js";
 import { estimateCalories } from "./calorieEngine.js";
-import { PULSE_FRESHNESS_MS } from "./constants.js";
+import { estimateFaceRppg } from "./faceRppgEngine.js";
+import {
+  FACE_MIN_COVERAGE,
+  FACE_MIN_PERIODICITY,
+  FACE_MIN_STABILITY,
+  FACE_RPPG_ENABLED,
+  PULSE_FRESHNESS_MS,
+  PULSE_MIN_COVERAGE,
+  PULSE_MIN_PERIODICITY,
+  PULSE_MIN_STABILITY,
+} from "./constants.js";
 import { isPulseFresh, pulseAgeMs } from "./freshness.js";
 import { estimatePulse } from "./pulseEngine.js";
 import type {
   AudioBreathingResult,
+  FaceRppgResult,
+  FaceRppgSample,
   AudioHopFeature,
   BreathingResult,
   BreathingSample,
@@ -514,5 +526,97 @@ describe("microphone breathing vectors", () => {
       expect(hop).toHaveLength(4);
       for (const value of hop) expect(typeof value).toBe("number");
     }
+  });
+});
+
+interface FaceRppgVector {
+  readonly name: string;
+  readonly measuredAtMs: number;
+  readonly samples: readonly [number, number, number, number, number, number][];
+  readonly expected: FaceRppgResult;
+}
+
+function toFaceSamples(
+  packed: readonly [number, number, number, number, number, number][],
+): FaceRppgSample[] {
+  return packed.map(
+    ([timestampMs, green, luma, faceArea, faceCenterX, faceCenterY]) => ({
+      timestampMs,
+      green,
+      luma,
+      faceArea,
+      faceCenterX,
+      faceCenterY,
+    }),
+  );
+}
+
+describe("face rPPG research mode", () => {
+  const files = readdirSync(path.join(goldenRoot, "face-rppg")).sort();
+
+  it("ships disabled, as the specification requires", () => {
+    // Master specification §3.3: experimental only. The engine exists and is
+    // tested, but nothing turns it on by default.
+    expect(FACE_RPPG_ENABLED).toBe(false);
+  });
+
+  for (const file of files) {
+    it(file, () => {
+      const vector = readJson<FaceRppgVector>("face-rppg", file);
+      const actual = estimateFaceRppg(
+        toFaceSamples(vector.samples),
+        vector.measuredAtMs,
+      );
+      const expected = vector.expected;
+
+      expect(actual.status, vector.name).toBe(expected.status);
+      expect(actual.sampleCount, vector.name).toBe(expected.sampleCount);
+      expect(actual.lumaSwing, vector.name).toBeCloseTo(expected.lumaSwing, 6);
+      expectQuality(actual, expected, vector.name);
+
+      if (actual.status === "measured" && expected.status === "measured") {
+        expect(actual.bpm, vector.name).toBeCloseTo(expected.bpm, 6);
+        expect(actual.confidenceBand, vector.name).toBe(expected.confidenceBand);
+        expect(actual.source).toBe("face_camera_rppg");
+        expect(actual.kind).toBe("app_estimated");
+        // The caveat is a literal on the type, so no consumer can strip it.
+        expect(actual.experimental).toBe(true);
+      }
+      if (actual.status === "rejected" && expected.status === "rejected") {
+        expect(actual.reason, vector.name).toBe(expected.reason);
+      }
+    });
+  }
+
+  it("recovers the synthesised rate when conditions allow", () => {
+    const truths: Record<string, number> = {
+      "well-lit-70bpm.json": 70,
+      "well-lit-96bpm.json": 96,
+      "slight-head-drift.json": 72,
+    };
+    for (const [file, truth] of Object.entries(truths)) {
+      const vector = readJson<FaceRppgVector>("face-rppg", file);
+      expect(vector.expected.status, file).toBe("measured");
+      if (vector.expected.status !== "measured") continue;
+      expect(Math.abs(vector.expected.bpm - truth), file).toBeLessThan(2);
+    }
+  });
+
+  it("refuses a session whose light was changing", () => {
+    // Slow illumination drift is exactly what rPPG mistakes for a pulse, and it
+    // is the failure the fingertip path avoids entirely by lighting the finger.
+    const vector = readJson<FaceRppgVector>("face-rppg", "changing-light.json");
+    expect(vector.expected.status).toBe("rejected");
+    if (vector.expected.status !== "rejected") return;
+    expect(vector.expected.reason).toBe("unstableLighting");
+    // The signal itself looked periodic; only the lighting gate caught it.
+    expect(vector.expected.quality.periodicity).toBeGreaterThan(0.6);
+  });
+
+  it("holds itself to a stricter bar than the fingertip estimator", () => {
+    // A weaker signal earns less benefit of the doubt, not more.
+    expect(FACE_MIN_PERIODICITY).toBeGreaterThan(PULSE_MIN_PERIODICITY);
+    expect(FACE_MIN_STABILITY).toBeGreaterThan(PULSE_MIN_STABILITY);
+    expect(FACE_MIN_COVERAGE).toBeLessThan(PULSE_MIN_COVERAGE);
   });
 });

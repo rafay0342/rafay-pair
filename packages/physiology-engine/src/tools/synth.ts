@@ -258,3 +258,95 @@ export function synthesiseBreathAudio(options: AudioSynthOptions): number[] {
   }
   return samples;
 }
+
+export interface FaceRppgSynthOptions {
+  readonly bpm: number;
+  readonly durationMs: number;
+  readonly frameRateHz?: number;
+  /** Mean green level of the facial region. */
+  readonly dcGreen?: number;
+  /**
+   * Pulsatile amplitude on the green channel. Facial rPPG is roughly an order
+   * of magnitude weaker than a fingertip signal, so the default is small.
+   */
+  readonly acAmplitude?: number;
+  readonly noise?: number;
+  readonly luma?: number;
+  /** Slow illumination change across the session, as a fraction of luma. */
+  readonly lightingDrift?: number;
+  readonly faceArea?: number;
+  /** Per-frame head movement, frame-normalized. */
+  readonly headMotion?: number;
+  /** Fraction of the tail where no face is detected. */
+  readonly faceLostTailFraction?: number;
+  readonly seed?: number;
+}
+
+export function synthesiseFaceRppg(
+  options: FaceRppgSynthOptions,
+): {
+  timestampMs: number;
+  green: number;
+  luma: number;
+  faceArea: number;
+  faceCenterX: number;
+  faceCenterY: number;
+}[] {
+  const {
+    bpm,
+    durationMs,
+    frameRateHz = 30,
+    dcGreen = 130,
+    acAmplitude = 0.55,
+    noise = 0.12,
+    luma = 140,
+    lightingDrift = 0,
+    faceArea = 0.14,
+    headMotion = 0,
+    faceLostTailFraction = 0,
+    seed = 20260810,
+  } = options;
+
+  const rng = new Rng(seed);
+  const stepMs = 1000 / frameRateHz;
+  const samples: {
+    timestampMs: number;
+    green: number;
+    luma: number;
+    faceArea: number;
+    faceCenterX: number;
+    faceCenterY: number;
+  }[] = [];
+  const lostFrom = durationMs * (1 - faceLostTailFraction);
+
+  let timestampMs = 0;
+  let index = 0;
+  while (timestampMs <= durationMs) {
+    const seconds = timestampMs / 1000;
+    const phase = 2 * Math.PI * (bpm / 60) * seconds;
+    const pulsatile =
+      acAmplitude * (Math.sin(phase) + 0.3 * Math.sin(2 * phase + 0.6));
+    // Illumination changes slowly, which is precisely why it is mistakable for
+    // a pulse and why the lighting gate exists.
+    const drift = lightingDrift * luma * Math.sin(2 * Math.PI * 0.03 * seconds);
+    const lost = faceLostTailFraction > 0 && timestampMs >= lostFrom;
+
+    samples.push({
+      timestampMs: round3(timestampMs),
+      green: round3(dcGreen + pulsatile + drift * 0.6 + rng.normal() * noise),
+      luma: round3(luma + drift + rng.normal() * noise),
+      faceArea: lost ? 0 : faceArea,
+      faceCenterX: round6(
+        0.5 + (headMotion > 0 ? headMotion * Math.sin(2 * Math.PI * 0.8 * seconds) : 0),
+      ),
+      faceCenterY: round6(
+        0.45 + (headMotion > 0 ? headMotion * Math.cos(2 * Math.PI * 0.7 * seconds) : 0),
+      ),
+    });
+
+    timestampMs += stepMs * (0.9 + 0.2 * rng.next());
+    index += 1;
+    if (index > 10_000) break;
+  }
+  return samples;
+}
