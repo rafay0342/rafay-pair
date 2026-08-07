@@ -129,6 +129,7 @@ import com.rafaypair.android.RafayPairApplication
 import com.rafaypair.android.ui.together.TogetherScreen
 import com.rafaypair.android.ui.together.TogetherViewModel
 import com.rafaypair.android.ui.together.VoiceSessionViewModel
+import com.rafaypair.android.experiments.ExperimentFlag
 import com.rafaypair.android.ui.vitals.BloodPressureViewModel
 import com.rafaypair.android.ui.vitals.VitalsScreen
 import com.rafaypair.android.ui.workout.WorkoutScreen
@@ -385,6 +386,11 @@ private fun SignedInScreen(
                     AppTab.MOVE -> MoveTab()
                     AppTab.TOGETHER -> TogetherTab(user, state)
                     AppTab.VITALS -> VitalsScreen(
+                        cameraBreathingOffered = (
+                            LocalContext.current.applicationContext as RafayPairApplication
+                        ).container.experimentFlags.isEnabled(
+                            ExperimentFlag.CAMERA_BREATHING_ESTIMATE,
+                        ),
                         bloodPressureViewModel = viewModel(
                             factory = BloodPressureViewModel.Factory(
                                 (LocalContext.current.applicationContext as RafayPairApplication)

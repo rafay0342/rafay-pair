@@ -130,6 +130,13 @@ struct BreathingSample: Sendable {
 /// `engines/breathing-estimation-spec/SPEC.md` §4 is normative. Dividing by
 /// torso scale makes the value invariant to distance from the camera: without
 /// it, walking towards the lens would read as an inhale.
+extension Joint {
+    /// The four torso joints the breathing sample needs, in its own shape.
+    var chestPoint: ChestSample.Point {
+        ChestSample.Point(x: x, y: y, visibility: visibility)
+    }
+}
+
 enum ChestSample {
     /// Matched to the pose engine's own thresholds, so a frame the pose engine
     /// would reject cannot enter the breathing estimator through a side door.

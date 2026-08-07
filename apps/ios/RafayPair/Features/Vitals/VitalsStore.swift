@@ -27,6 +27,23 @@ final class VitalsStore {
     /// paced animation.
     var listenForBreathing = false
 
+    /// Master specification §6B, behind `camera_breathing_estimate`. Offered
+    /// only when the experiment is on; the control does not exist otherwise,
+    /// because a disabled switch would still be an announcement.
+    private(set) var cameraBreathingOffered = false
+    var watchForBreathing = false
+    private(set) var chestVisible = false
+    private(set) var cameraBreathingEstimate: MeasuredBreathing?
+    private(set) var cameraBreathingRejection: BreathingRejectionReason?
+    private var chestSamples: [BreathingSample] = []
+
+    var isWatching: Bool { cameraBreathingOffered && watchForBreathing && breathingStartedAt != nil }
+
+    func offerCameraBreathing(_ offered: Bool) {
+        cameraBreathingOffered = offered
+        if !offered { watchForBreathing = false }
+    }
+
     /// Recomputed from a timer tick so an expired reading stops presenting
     /// itself as current, per master specification §4.
     var now: Date = .now
@@ -86,6 +103,62 @@ final class VitalsStore {
         breathingStartedAt = .now
         breathingEstimate = nil
         breathingRejection = nil
+        chestSamples = []
+        chestVisible = false
+        cameraBreathingEstimate = nil
+        cameraBreathingRejection = nil
+    }
+
+    /// Turns one pose frame into one breathing sample and releases the frame.
+    ///
+    /// The landmarks are reduced here, in the callback: nothing retains a frame,
+    /// and the estimator's input carries a single scalar per sample.
+    func handleBreathingFrame(_ frame: PoseFrame) {
+        guard isWatching else { return }
+        let sample = ChestSample.from(
+            timestampMs: frame.timestampMs,
+            leftShoulder: frame.joint(.leftShoulder).chestPoint,
+            rightShoulder: frame.joint(.rightShoulder).chestPoint,
+            leftHip: frame.joint(.leftHip).chestPoint,
+            rightHip: frame.joint(.rightHip).chestPoint
+        )
+        chestSamples.append(sample)
+        chestVisible = sample.tracked
+    }
+
+    /// Scores a finished watching session. A rejection replaces nothing.
+    func finishWatching() {
+        let collected = chestSamples
+        chestSamples = []
+        chestVisible = false
+        guard !collected.isEmpty else { return }
+
+        switch BreathingEstimator.estimate(
+            collected, measuredAtMs: Date().timeIntervalSince1970 * 1000
+        ) {
+        case .measured(let breathing):
+            cameraBreathingEstimate = breathing
+            cameraBreathingRejection = nil
+        case .rejected(let reason, _, _, _):
+            cameraBreathingRejection = reason
+        }
+    }
+
+    func cameraGuidance(for reason: BreathingRejectionReason) -> String {
+        switch reason {
+        case .tooShort:
+            "Watching needs about half a minute of steady breathing to say anything."
+        case .notTracked:
+            "Your torso was not in view for enough of the session."
+        case .excessiveMotion:
+            "There was too much movement to read breathing from chest motion."
+        case .noPeriodicity:
+            "No steady rhythm came through."
+        case .unstable:
+            "The rhythm kept changing, so no single rate would be honest."
+        case .outOfRange:
+            "The result was outside a plausible range, so it was discarded."
+        }
     }
 
     func stopBreathing() {

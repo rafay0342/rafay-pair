@@ -19,6 +19,7 @@ import com.rafaypair.android.data.repository.DefaultPairRepository
 import com.rafaypair.android.data.repository.DefaultPrivacyRepository
 import com.rafaypair.android.data.repository.DefaultTogetherRepository
 import com.rafaypair.android.data.repository.NotificationDeviceRepository
+import com.rafaypair.android.experiments.ExperimentFlagStore
 import com.rafaypair.android.data.repository.ReconnectSyncCoordinator
 import com.rafaypair.android.data.repository.SyncScheduler
 import com.rafaypair.android.domain.model.PairStatus
@@ -135,6 +136,7 @@ class AppContainer(application: Application, firebaseAvailable: Boolean) {
     val togetherRepository: TogetherRepository = DefaultTogetherRepository(api)
     val assistantRepository: AssistantRepository = DefaultAssistantRepository(api)
     val voiceClient = VoiceClient(api, json, scope)
+    val experimentFlags = ExperimentFlagStore(application)
     val realtimeRepository: RealtimeRepository = DefaultRealtimeRepository(
         api,
         json,

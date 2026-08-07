@@ -1,6 +1,7 @@
 package com.rafaypair.android.ui.vitals
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.rafaypair.android.physiology.AudioBreathingEstimator
 import com.rafaypair.android.physiology.AudioBreathingRejectionReason
 import com.rafaypair.android.physiology.AudioBreathingResult
@@ -9,6 +10,12 @@ import com.rafaypair.android.physiology.BreathingEstimator
 import com.rafaypair.android.physiology.BreathingPattern
 import com.rafaypair.android.physiology.BreathingPhase
 import com.rafaypair.android.physiology.BreathingPhaseState
+import com.rafaypair.android.physiology.BreathingRejectionReason
+import com.rafaypair.android.physiology.BreathingResult
+import com.rafaypair.android.physiology.BreathingSample
+import com.rafaypair.android.physiology.ChestSample
+import com.rafaypair.android.pose.JointName
+import com.rafaypair.android.pose.PoseFrame
 import com.rafaypair.android.physiology.PhysiologyTuning
 import com.rafaypair.android.physiology.PulseEstimator
 import com.rafaypair.android.physiology.PulseFreshness
@@ -44,6 +51,17 @@ data class VitalsUiState(
     val breathingEstimate: AudioBreathingResult.Measured? = null,
     val breathingRejection: AudioBreathingRejectionReason? = null,
     val microphoneError: String? = null,
+    /**
+     * Off by default and hidden entirely unless the experiment flag is on.
+     * Master specification §24: no experimental physiological feature may be
+     * enabled silently.
+     */
+    val cameraBreathingOffered: Boolean = false,
+    val watchForBreathing: Boolean = false,
+    val watching: Boolean = false,
+    val chestVisible: Boolean = false,
+    val cameraBreathingEstimate: BreathingResult.Measured? = null,
+    val cameraBreathingRejection: BreathingRejectionReason? = null,
     val nowMs: Long = 0L,
 ) {
     val pulseIsFresh: Boolean
@@ -70,11 +88,14 @@ data class VitalsUiState(
  * guided breathing. Everything is on-device; a result reaches a partner only
  * through an explicit, consent-gated share.
  */
-class VitalsViewModel : ViewModel() {
+class VitalsViewModel(cameraBreathingOffered: Boolean = false) : ViewModel() {
     private val samples = mutableListOf<PulseSample>()
     private val hops = mutableListOf<AudioHopFeature>()
+    private val chestSamples = mutableListOf<BreathingSample>()
 
-    private val _state = MutableStateFlow(VitalsUiState())
+    private val _state = MutableStateFlow(
+        VitalsUiState(cameraBreathingOffered = cameraBreathingOffered),
+    )
     val state: StateFlow<VitalsUiState> = _state.asStateFlow()
 
     fun tick(nowMs: Long) {
@@ -135,11 +156,16 @@ class VitalsViewModel : ViewModel() {
 
     fun startBreathing(pattern: BreathingPattern, nowMs: Long) {
         hops.clear()
+        chestSamples.clear()
         _state.update {
             it.copy(
                 breathingPattern = pattern,
                 breathingStartedAtMs = nowMs,
                 listening = it.listenForBreathing,
+                watching = it.watchForBreathing && it.cameraBreathingOffered,
+                chestVisible = false,
+                cameraBreathingEstimate = null,
+                cameraBreathingRejection = null,
                 breathAudible = false,
                 breathingEstimate = null,
                 breathingRejection = null,
@@ -150,6 +176,33 @@ class VitalsViewModel : ViewModel() {
 
     fun setListenForBreathing(enabled: Boolean) {
         _state.update { it.copy(listenForBreathing = enabled) }
+    }
+
+    fun setWatchForBreathing(enabled: Boolean) {
+        // Ignored outright when the experiment is not offered, so a stale UI
+        // event cannot turn on a camera the user was never shown a control for.
+        if (!_state.value.cameraBreathingOffered) return
+        _state.update { it.copy(watchForBreathing = enabled) }
+    }
+
+    /**
+     * Turns one pose frame into one breathing sample and releases the frame.
+     *
+     * The landmarks are reduced here, in the callback, exactly as the workout
+     * path does: nothing retains a frame, and the estimator's input type carries
+     * only a scalar per sample.
+     */
+    fun onBreathingFrame(frame: PoseFrame) {
+        if (!_state.value.watching) return
+        val sample = ChestSample.from(
+            timestampMs = frame.timestampMs,
+            leftShoulder = frame.joint(JointName.LEFT_SHOULDER).toChestPoint(),
+            rightShoulder = frame.joint(JointName.RIGHT_SHOULDER).toChestPoint(),
+            leftHip = frame.joint(JointName.LEFT_HIP).toChestPoint(),
+            rightHip = frame.joint(JointName.RIGHT_HIP).toChestPoint(),
+        )
+        chestSamples.add(sample)
+        _state.update { it.copy(chestVisible = sample.tracked) }
     }
 
     fun onBreathHops(produced: List<AudioHopFeature>) {
@@ -167,6 +220,13 @@ class VitalsViewModel : ViewModel() {
     fun stopBreathing(nowMs: Long) {
         val collected = hops.toList()
         hops.clear()
+        val watched = chestSamples.toList()
+        chestSamples.clear()
+        val cameraResult = if (watched.isEmpty()) {
+            null
+        } else {
+            BreathingEstimator.estimate(watched, nowMs.toDouble())
+        }
         val result = if (collected.isEmpty()) {
             null
         } else {
@@ -179,6 +239,11 @@ class VitalsViewModel : ViewModel() {
                 breathingEstimate = result as? AudioBreathingResult.Measured
                     ?: current.breathingEstimate,
                 breathingRejection = (result as? AudioBreathingResult.Rejected)?.reason,
+                watching = false,
+                chestVisible = false,
+                cameraBreathingEstimate = cameraResult as? BreathingResult.Measured
+                    ?: current.cameraBreathingEstimate,
+                cameraBreathingRejection = (cameraResult as? BreathingResult.Rejected)?.reason,
             )
         }
     }
@@ -202,6 +267,25 @@ class VitalsViewModel : ViewModel() {
             "The result was outside a plausible range, so it was discarded."
     }
 
+    fun cameraBreathingGuidance(reason: BreathingRejectionReason): String = when (reason) {
+        BreathingRejectionReason.TOO_SHORT ->
+            "Watching needs about half a minute of steady breathing to say anything."
+
+        BreathingRejectionReason.NOT_TRACKED ->
+            "Your torso was not in view for enough of the session."
+
+        BreathingRejectionReason.EXCESSIVE_MOTION ->
+            "There was too much movement to read breathing from chest motion."
+
+        BreathingRejectionReason.NO_PERIODICITY -> "No steady rhythm came through."
+
+        BreathingRejectionReason.UNSTABLE ->
+            "The rhythm kept changing, so no single rate would be honest."
+
+        BreathingRejectionReason.OUT_OF_RANGE ->
+            "The result was outside a plausible range, so it was discarded."
+    }
+
     fun guidance(reason: PulseRejectionReason): String = when (reason) {
         PulseRejectionReason.TOO_SHORT ->
             "Hold still a little longer — measuring needs about twenty seconds."
@@ -221,4 +305,13 @@ class VitalsViewModel : ViewModel() {
         PulseRejectionReason.OUT_OF_RANGE ->
             "The result was outside a plausible range, so it was discarded."
     }
+    class Factory(private val cameraBreathingOffered: Boolean) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            VitalsViewModel(cameraBreathingOffered) as T
+    }
+
 }
+
+private fun com.rafaypair.android.pose.Joint.toChestPoint() =
+    ChestSample.Point(x = x, y = y, visibility = visibility)

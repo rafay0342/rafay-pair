@@ -6,10 +6,14 @@ import SwiftUI
 /// blood pressure is stated as unsupported rather than quietly absent.
 struct VitalsView: View {
     let bloodPressure: any BloodPressureRepository
+    let cameraBreathingOffered: Bool
 
     @State private var store = VitalsStore()
     @State private var capture = PulseCaptureSession()
     @State private var breathAudio = BreathAudioCaptureSession()
+    /// The front camera for §6B. Constructed unconditionally but started only
+    /// inside a session the user asked to be watched.
+    @State private var breathCamera = PoseCaptureSession()
     @State private var faceCapture = FaceRppgCaptureSession()
     @State private var faceResult: FaceRppgResult?
 
@@ -33,6 +37,7 @@ struct VitalsView: View {
         }
         .background(Brand.background.ignoresSafeArea())
         .navigationTitle("Vitals")
+        .onAppear { store.offerCameraBreathing(cameraBreathingOffered) }
         .onReceive(tick) { store.now = $0 }
         .onDisappear {
             capture.stop()
@@ -204,6 +209,27 @@ struct VitalsView: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
 
+                    // Master specification §6B, behind camera_breathing_estimate.
+                    // The control is absent when the experiment is off: a
+                    // disabled switch would still be an announcement.
+                    if store.cameraBreathingOffered {
+                        Toggle(
+                            "Also estimate it from chest movement (experimental)",
+                            isOn: $store.watchForBreathing
+                        )
+                        .font(.footnote)
+                        Text(
+                            "The front camera watches your torso for the length of the session. Frames become one number each and are released; nothing is recorded or sent."
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        if store.isWatching {
+                            Text(store.chestVisible ? "Torso in view" : "Move so your torso is in view")
+                                .font(.caption2)
+                                .foregroundStyle(store.chestVisible ? Color.green : Color.orange)
+                        }
+                    }
+
                     HStack {
                         Button("Calm") { startBreathingSession(.calm(cycles: 6)) }
                         Button("Box") { startBreathingSession(.box(cycles: 5)) }
@@ -226,6 +252,21 @@ struct VitalsView: View {
                             .font(.footnote)
                             .foregroundStyle(Color.orange)
                     }
+                    if let estimate = store.cameraBreathingEstimate {
+                        Text(
+                            "Estimated \(estimate.breathsPerMinute, specifier: "%.1f") breaths per minute"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        Text(
+                            "From chest movement on this phone · experimental · \(estimate.confidenceBand.rawValue) confidence"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    } else if let reason = store.cameraBreathingRejection {
+                        Text(store.cameraGuidance(for: reason))
+                            .font(.footnote)
+                            .foregroundStyle(Color.orange)
+                    }
                     if case .denied = breathAudio.state {
                         Text("Microphone access is off. Enable it in Settings to listen.")
                             .font(.footnote)
@@ -244,13 +285,21 @@ struct VitalsView: View {
         if store.listenForBreathing {
             Task { await breathAudio.start() }
         }
+        if store.isWatching {
+            breathCamera.onFrame = { frame in store.handleBreathingFrame(frame) }
+            Task { await breathCamera.start() }
+        }
     }
 
     private func stopBreathingSession() {
         let hops = breathAudio.hops
         breathAudio.stop()
+        // Stopped before scoring, so the camera is off by the time a result
+        // appears rather than while the user reads it.
+        breathCamera.stop()
         store.stopBreathing()
         if !hops.isEmpty { store.finishListening(hops: hops) }
+        store.finishWatching()
     }
 
     private func breathingLabel(_ phase: BreathingPhase) -> String {

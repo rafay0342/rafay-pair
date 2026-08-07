@@ -13,9 +13,11 @@ struct AppDependencies: Sendable {
     let realtime: RealtimeClient
     let voice: VoiceClient
     let bloodPressure: any BloodPressureRepository
+    let experiments: ExperimentFlagStore
     let notifications: PushNotificationCoordinator
     let appAttest: AppAttestCoordinator
 
+    @MainActor
     static func live(bundle: Bundle = .main) -> AppDependencies {
         guard
             let rawBaseURL = bundle.object(forInfoDictionaryKey: "RPAPIBaseURL") as? String,
@@ -51,6 +53,7 @@ struct AppDependencies: Sendable {
             realtime: RealtimeClient(api: api),
             voice: VoiceClient(api: api),
             bloodPressure: RemoteBloodPressureRepository(api: api),
+            experiments: ExperimentFlagStore(),
             notifications: PushNotificationCoordinator(
                 service: notificationDevices,
                 delivery: notificationDelivery

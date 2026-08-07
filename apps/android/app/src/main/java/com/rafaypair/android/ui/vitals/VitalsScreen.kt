@@ -57,6 +57,7 @@ import com.rafaypair.android.physiology.FaceRppgResult
 import com.rafaypair.android.physiology.FaceRppgSample
 import com.rafaypair.android.physiology.PhysiologyTuning
 import com.rafaypair.android.physiology.PulseCaptureController
+import com.rafaypair.android.pose.PoseCaptureController
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -68,8 +69,11 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun VitalsScreen(
+    cameraBreathingOffered: Boolean,
     bloodPressureViewModel: BloodPressureViewModel,
-    viewModel: VitalsViewModel = viewModel(),
+    viewModel: VitalsViewModel = viewModel(
+        factory = VitalsViewModel.Factory(cameraBreathingOffered),
+    ),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -98,6 +102,13 @@ fun VitalsScreen(
     val controller = remember {
         PulseCaptureController(context) { viewModel.onSample(it) }
     }
+    // Master specification §6B. The front camera runs only for the length of a
+    // breathing session the user started with the experiment switched on, and
+    // each frame becomes one scalar before it is released.
+    val breathCamera = remember {
+        PoseCaptureController(context) { viewModel.onBreathingFrame(it) }
+    }
+    val breathPreview = remember { PreviewView(context) }
     val breathAudio = remember {
         BreathAudioCaptureController(
             onHops = { viewModel.onBreathHops(it) },
@@ -118,11 +129,21 @@ fun VitalsScreen(
         onDispose {
             controller.release()
             breathAudio.stop()
+            breathCamera.stop()
         }
     }
 
     DisposableEffect(state.listening) {
         if (state.listening) breathAudio.start() else breathAudio.stop()
+        onDispose { }
+    }
+
+    DisposableEffect(state.watching) {
+        if (state.watching) {
+            breathCamera.start(lifecycleOwner, breathPreview)
+        } else {
+            breathCamera.stop()
+        }
         onDispose { }
     }
 
@@ -163,9 +184,13 @@ fun VitalsScreen(
                 requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
             },
             onToggleListen = viewModel::setListenForBreathing,
+            cameraGranted = permissionGranted,
+            onRequestCamera = { requestPermission.launch(Manifest.permission.CAMERA) },
+            onToggleWatch = viewModel::setWatchForBreathing,
             onStart = { viewModel.startBreathing(it, System.currentTimeMillis()) },
             onStop = { viewModel.stopBreathing(System.currentTimeMillis()) },
             audioGuidance = viewModel::audioGuidance,
+            cameraBreathingGuidance = viewModel::cameraBreathingGuidance,
         )
         // Master specification §3.3: experimental, and removable. With the flag
         // off this surface does not exist and nothing else references the engine.
@@ -459,9 +484,15 @@ private fun BreathingCard(
     microphoneGranted: Boolean,
     onRequestMicrophone: () -> Unit,
     onToggleListen: (Boolean) -> Unit,
+    cameraGranted: Boolean,
+    onRequestCamera: () -> Unit,
+    onToggleWatch: (Boolean) -> Unit,
     onStart: (BreathingPattern) -> Unit,
     onStop: () -> Unit,
     audioGuidance: (com.rafaypair.android.physiology.AudioBreathingRejectionReason) -> String,
+    cameraBreathingGuidance: (
+        com.rafaypair.android.physiology.BreathingRejectionReason,
+    ) -> String,
 ) {
     Card {
         Column(
@@ -537,6 +568,51 @@ private fun BreathingCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                // Master specification §6B, behind the camera_breathing_estimate
+                // flag. The control does not exist at all when the experiment is
+                // off — a disabled switch would still be an announcement.
+                if (state.cameraBreathingOffered) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Also estimate it from chest movement (experimental)",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Switch(
+                            checked = state.watchForBreathing,
+                            onCheckedChange = { wanted ->
+                                if (wanted && !cameraGranted) {
+                                    onRequestCamera()
+                                } else {
+                                    onToggleWatch(wanted)
+                                }
+                            },
+                        )
+                    }
+                    Text(
+                        "The front camera watches your torso for the length of the session. " +
+                            "Frames become one number each and are released; nothing is " +
+                            "recorded or sent.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (state.watching) {
+                        Text(
+                            if (state.chestVisible) "Torso in view" else "Move so your torso is in view",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (state.chestVisible) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            },
+                        )
+                    }
+                }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { onStart(BreathingPattern.calm(6)) }) { Text("Calm") }
                     TextButton(onClick = { onStart(BreathingPattern.box(5)) }) { Text("Box") }
@@ -552,6 +628,25 @@ private fun BreathingCard(
                         "From sound on this phone · ${estimate.confidenceBand.wireName} confidence",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.cameraBreathingEstimate?.let { estimate ->
+                    Text(
+                        "Estimated ${estimate.breathsPerMinute} breaths per minute",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        "From chest movement on this phone · experimental · " +
+                            "${estimate.confidenceBand.wireName} confidence",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.cameraBreathingRejection?.let {
+                    Text(
+                        cameraBreathingGuidance(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
                 state.breathingRejection?.let {
