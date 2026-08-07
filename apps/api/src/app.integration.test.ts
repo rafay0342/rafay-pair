@@ -12,6 +12,7 @@ import {
 } from "@rafay-pair/realtime";
 import type { RealtimeEventEnvelope } from "@rafay-pair/api-contracts";
 
+import { consumeVoiceTicket, issueVoiceTicket } from "./ai/voice.js";
 import { buildApi } from "./app.js";
 import { hashAppAttestKeyId } from "./app-attest.js";
 import type { ApiConfig } from "./config.js";
@@ -1514,6 +1515,72 @@ describe("Milestone 1 API", () => {
       payload: { callId: "call-late", name: "get_latest_pulse", arguments: {} },
     });
     expect(afterEnd.statusCode).toBe(404);
+  });
+
+  it("admits one AI voice socket per session, only after the disclosure was announced", async () => {
+    const user = await registerNative("ai-voice@example.test", "AI Voice");
+
+    const started = await app.inject({
+      method: "POST",
+      url: "/v1/ai/sessions",
+      headers: nativeHeaders(user.accessToken),
+    });
+    const session = started.json().session as { id: string };
+
+    // No provider is configured in tests, and an unconfigured deployment says
+    // so plainly rather than handing out a ticket to a socket that cannot open.
+    const unavailable = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/voice-ticket`,
+      headers: nativeHeaders(user.accessToken),
+    });
+    expect(unavailable.statusCode).toBe(503);
+
+    const client = await pool.connect();
+    try {
+      const issued = await issueVoiceTicket(client, session.id, user.userId);
+      expect(issued).not.toBeNull();
+      if (!issued) return;
+
+      // Before the disclosure is announced there is nothing to admit: generated
+      // audio must not reach someone who was never told what they are hearing.
+      expect(await consumeVoiceTicket(client, issued.ticket)).toBeNull();
+
+      await app.inject({
+        method: "POST",
+        url: `/v1/ai/sessions/${session.id}/identity-announced`,
+        headers: nativeHeaders(user.accessToken),
+      });
+
+      const claims = await consumeVoiceTicket(client, issued.ticket);
+      expect(claims?.sessionId).toBe(session.id);
+      expect(claims?.userId).toBe(user.userId);
+
+      // Single use. The same ticket cannot open a second socket, and a fresh
+      // ticket cannot be minted while one is connected.
+      expect(await consumeVoiceTicket(client, issued.ticket)).toBeNull();
+      expect(
+        await issueVoiceTicket(client, session.id, user.userId),
+      ).toBeNull();
+
+      // Another account cannot mint a ticket for a session that is not theirs.
+      const stranger = await registerNative(
+        "ai-voice-stranger@example.test",
+        "AI Voice Stranger",
+      );
+      expect(
+        await issueVoiceTicket(client, session.id, stranger.userId),
+      ).toBeNull();
+    } finally {
+      client.release();
+    }
+
+    const stored = await pool.query<{ voice_ticket_hash: string | null }>(
+      "SELECT voice_ticket_hash FROM ai_sessions WHERE id = $1",
+      [session.id],
+    );
+    // Redemption clears it, so a database copy taken afterwards yields nothing.
+    expect(stored.rows[0]?.voice_ticket_hash).toBeNull();
   });
 
   it("keeps tickets out of URLs, fences replay by worker authorization and consent, and closes rotated sessions", async () => {

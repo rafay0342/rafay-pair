@@ -128,6 +128,7 @@ import com.rafaypair.android.domain.model.User
 import com.rafaypair.android.RafayPairApplication
 import com.rafaypair.android.ui.together.TogetherScreen
 import com.rafaypair.android.ui.together.TogetherViewModel
+import com.rafaypair.android.ui.together.VoiceSessionViewModel
 import com.rafaypair.android.ui.vitals.VitalsScreen
 import com.rafaypair.android.ui.workout.WorkoutScreen
 import com.rafaypair.android.ui.workout.WorkoutViewModel
@@ -435,11 +436,18 @@ private fun TogetherTab(user: User, state: MainUiState) {
             container.assistantRepository,
         ),
     )
+    val voiceViewModel: VoiceSessionViewModel = viewModel(
+        factory = VoiceSessionViewModel.Factory(
+            container.assistantRepository,
+            container.voiceClient,
+        ),
+    )
     TogetherScreen(
         currentUserId = user.id,
         hasPartner = state.pair?.status == PairStatus.ACTIVE,
         sharingAllowed = state.partnerSharingAllowed,
         viewModel = togetherViewModel,
+        voiceViewModel = voiceViewModel,
     )
 }
 

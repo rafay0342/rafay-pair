@@ -319,3 +319,22 @@ data class AiSessionDto(
 
 @Serializable
 data class AiSessionResponseDto(val session: AiSessionDto? = null)
+
+@Serializable
+data class AiVoiceAudioFormatDto(
+    val encoding: String,
+    val sampleRateHz: Int,
+    val channels: Int,
+)
+
+/**
+ * The socket ticket. The audio format is server-stated: the client conforms
+ * rather than negotiating, so there is one framing to get right instead of many.
+ */
+@Serializable
+data class AiVoiceTicketDto(
+    val ticket: String,
+    val expiresAt: String,
+    val webSocketUrl: String,
+    val audio: AiVoiceAudioFormatDto,
+)

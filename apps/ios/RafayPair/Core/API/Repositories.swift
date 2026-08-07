@@ -282,6 +282,7 @@ protocol AssistantRepository: Sendable {
     func startSession() async throws -> AiSession?
     func markIdentityAnnounced(id: UUID) async throws -> AiSession?
     func endSession(id: UUID) async throws -> AiSession?
+    func voiceTicket(id: UUID) async throws -> AiVoiceTicket
 }
 
 actor RemoteAssistantRepository: AssistantRepository {
@@ -320,6 +321,13 @@ actor RemoteAssistantRepository: AssistantRepository {
             "/v1/ai/sessions/current"
         )
         return response.session
+    }
+
+    func voiceTicket(id: UUID) async throws -> AiVoiceTicket {
+        try await api.authenticated(
+            "/v1/ai/sessions/\(id.uuidString.lowercased())/voice-ticket",
+            method: .post
+        )
     }
 
     func startSession() async throws -> AiSession? {

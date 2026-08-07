@@ -14,6 +14,7 @@ struct RootView: View {
     let appAttest: AppAttestCoordinator
     let together: any TogetherRepository
     let assistant: any AssistantRepository
+    let voice: VoiceClient
     @State private var preparedAccountID: UUID?
     @State private var accountPreparationComplete = false
 
@@ -38,7 +39,8 @@ struct RootView: View {
                         notifications: notifications,
                         appAttest: appAttest,
                         together: together,
-                        assistant: assistant
+                        assistant: assistant,
+                        voice: voice
                     )
                 } else {
                     LaunchView()

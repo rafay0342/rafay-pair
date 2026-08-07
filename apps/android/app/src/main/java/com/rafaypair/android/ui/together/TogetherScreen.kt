@@ -48,6 +48,7 @@ fun TogetherScreen(
     hasPartner: Boolean,
     sharingAllowed: Boolean,
     viewModel: TogetherViewModel,
+    voiceViewModel: VoiceSessionViewModel,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -105,6 +106,7 @@ fun TogetherScreen(
             )
         }
         item { AssistantCard() }
+        item { VoiceSessionCard(voiceViewModel) }
         item { MemoryComposerCard(state, viewModel) }
 
         items(state.memories, key = { it.id }) { memory ->

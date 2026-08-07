@@ -10,6 +10,7 @@ import com.rafaypair.android.data.local.PushRegistrationStore
 import com.rafaypair.android.data.network.ApiClient
 import com.rafaypair.android.data.network.DefaultRealtimeRepository
 import com.rafaypair.android.data.network.RefreshCoordinator
+import com.rafaypair.android.data.network.VoiceClient
 import com.rafaypair.android.data.repository.DefaultAssistantRepository
 import com.rafaypair.android.data.repository.DefaultAuthRepository
 import com.rafaypair.android.data.repository.DefaultCareRepository
@@ -133,6 +134,7 @@ class AppContainer(application: Application, firebaseAvailable: Boolean) {
     )
     val togetherRepository: TogetherRepository = DefaultTogetherRepository(api)
     val assistantRepository: AssistantRepository = DefaultAssistantRepository(api)
+    val voiceClient = VoiceClient(api, json, scope)
     val realtimeRepository: RealtimeRepository = DefaultRealtimeRepository(
         api,
         json,

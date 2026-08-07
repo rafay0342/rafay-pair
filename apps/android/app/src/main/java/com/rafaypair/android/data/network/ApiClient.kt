@@ -284,6 +284,39 @@ class ApiClient(
 
     // MARK: - Rafay AI
 
+    suspend fun currentAiSession(): AiSessionResponseDto = get(
+        "/v1/ai/sessions/current",
+        AiSessionResponseDto.serializer(),
+    )
+
+    suspend fun startAiSession(): AiSessionResponseDto = post(
+        "/v1/ai/sessions",
+        EmptyRequestDto(),
+        EmptyRequestDto.serializer(),
+        AiSessionResponseDto.serializer(),
+    )
+
+    suspend fun announceAiIdentity(id: String): AiSessionResponseDto = post(
+        "/v1/ai/sessions/${UUID.fromString(id)}/identity-announced",
+        EmptyRequestDto(),
+        EmptyRequestDto.serializer(),
+        AiSessionResponseDto.serializer(),
+    )
+
+    suspend fun endAiSession(id: String): AiSessionResponseDto = post(
+        "/v1/ai/sessions/${UUID.fromString(id)}/end",
+        EmptyRequestDto(),
+        EmptyRequestDto.serializer(),
+        AiSessionResponseDto.serializer(),
+    )
+
+    suspend fun aiVoiceTicket(id: String): AiVoiceTicketDto = post(
+        "/v1/ai/sessions/${UUID.fromString(id)}/voice-ticket",
+        EmptyRequestDto(),
+        EmptyRequestDto.serializer(),
+        AiVoiceTicketDto.serializer(),
+    )
+
     suspend fun aiMemories(): AiMemoryListResponseDto = get(
         "/v1/ai/memories",
         AiMemoryListResponseDto.serializer(),

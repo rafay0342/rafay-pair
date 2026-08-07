@@ -394,6 +394,21 @@ struct AiSession: Codable, Sendable, Identifiable {
     let allowedTools: [AiAllowedTool]
 }
 
+struct AiVoiceAudioFormat: Codable, Sendable {
+    let encoding: String
+    let sampleRateHz: Int
+    let channels: Int
+}
+
+/// The socket ticket. Server-stated audio format: the client conforms rather
+/// than negotiating, so there is one framing to get right instead of many.
+struct AiVoiceTicket: Codable, Sendable {
+    let ticket: String
+    let expiresAt: Date
+    let webSocketUrl: URL
+    let audio: AiVoiceAudioFormat
+}
+
 struct AiSessionResponse: Codable, Sendable {
     let session: AiSession?
 }

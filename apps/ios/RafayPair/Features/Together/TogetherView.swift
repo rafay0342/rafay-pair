@@ -10,7 +10,9 @@ struct TogetherView: View {
     @Bindable var privacyStore: PrivacyStore
     let together: any TogetherRepository
     let assistant: any AssistantRepository
+    let voice: VoiceClient
 
+    @State private var voiceStore: VoiceSessionStore?
     @State private var session: TogetherSession?
     @State private var memories: [AiMemory] = []
     @State private var memoryLimit = 0
@@ -34,6 +36,9 @@ struct TogetherView: View {
                 }
                 togetherCard
                 assistantCard
+                if let voiceStore {
+                    VoiceSessionView(store: voiceStore)
+                }
                 memoryCard
             }
             .padding(18)
@@ -41,8 +46,19 @@ struct TogetherView: View {
         .background(Brand.background.ignoresSafeArea())
         .navigationTitle("Together")
         .task {
+            if voiceStore == nil {
+                voiceStore = VoiceSessionStore(assistant: assistant, client: voice)
+            }
             await reloadSession()
             await reloadMemories()
+        }
+        .onDisappear {
+            // Leaving the screen ends the conversation. A voice session that
+            // outlived the surface showing its microphone state would be a
+            // microphone the user has no indicator for.
+            if let voiceStore {
+                Task { await voiceStore.stop() }
+            }
         }
         .refreshable {
             await reloadSession()

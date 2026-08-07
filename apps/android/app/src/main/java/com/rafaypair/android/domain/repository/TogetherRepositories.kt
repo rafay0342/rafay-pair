@@ -1,8 +1,10 @@
 package com.rafaypair.android.domain.repository
 
+import com.rafaypair.android.data.network.AiVoiceTicketDto
 import com.rafaypair.android.domain.model.AiMemory
 import com.rafaypair.android.domain.model.AiMemoryCategory
 import com.rafaypair.android.domain.model.AiMemoryPage
+import com.rafaypair.android.domain.model.AiSession
 import com.rafaypair.android.domain.model.TogetherActivity
 import com.rafaypair.android.domain.model.TogetherSession
 
@@ -28,4 +30,10 @@ interface AssistantRepository {
     suspend fun addMemory(category: AiMemoryCategory, content: String): AiMemory
     suspend fun deleteMemory(id: String)
     suspend fun forgetAll()
+
+    suspend fun currentSession(): AiSession?
+    suspend fun startSession(): AiSession?
+    suspend fun announceIdentity(id: String): AiSession?
+    suspend fun endSession(id: String): AiSession?
+    suspend fun voiceTicket(id: String): AiVoiceTicketDto
 }

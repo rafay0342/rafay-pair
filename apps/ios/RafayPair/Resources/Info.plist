@@ -19,7 +19,7 @@
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>RafayPair listens during a breathing session you start, to estimate your breathing rhythm on this phone. Audio is turned into a few numbers as it arrives and is never recorded, stored, or uploaded.</string>
+    <string>Two things you start yourself. During a breathing session, audio is turned into a few numbers on this phone as it arrives and never leaves it. During a voice conversation with Rafay AI, what you say is sent live to answer you and is not recorded or stored. Nothing listens outside those sessions.</string>
     <key>NSCameraUsageDescription</key>
     <string>RafayPair uses the camera on this phone to detect your body position for local workouts. Video is analysed on-device and never recorded, stored, or uploaded.</string>
     <key>ITSAppUsesNonExemptEncryption</key>

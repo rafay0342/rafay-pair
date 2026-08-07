@@ -17,6 +17,7 @@ struct MainShellView: View {
     let appAttest: AppAttestCoordinator
     let together: any TogetherRepository
     let assistant: any AssistantRepository
+    let voice: VoiceClient
 
     private var activePairID: UUID? {
         pairStore.pair?.status == .active ? pairStore.pair?.id : nil
@@ -80,7 +81,8 @@ struct MainShellView: View {
                     pairStore: pairStore,
                     privacyStore: privacyStore,
                     together: together,
-                    assistant: assistant
+                    assistant: assistant,
+                    voice: voice
                 )
             }
             .tabItem { Label("Together", systemImage: "person.2.fill") }

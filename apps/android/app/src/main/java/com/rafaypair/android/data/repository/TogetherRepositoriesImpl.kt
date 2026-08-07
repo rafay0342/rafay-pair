@@ -4,11 +4,14 @@ import com.rafaypair.android.data.network.AiMemoryDto
 import com.rafaypair.android.data.network.ApiClient
 import com.rafaypair.android.data.network.ApiHttpException
 import com.rafaypair.android.data.network.ApiNetworkException
+import com.rafaypair.android.data.network.AiSessionDto
+import com.rafaypair.android.data.network.AiVoiceTicketDto
 import com.rafaypair.android.data.network.PublishTogetherStateRequestDto
 import com.rafaypair.android.data.network.TogetherSessionDto
 import com.rafaypair.android.domain.model.AiMemory
 import com.rafaypair.android.domain.model.AiMemoryCategory
 import com.rafaypair.android.domain.model.AiMemoryPage
+import com.rafaypair.android.domain.model.AiSession
 import com.rafaypair.android.domain.model.RepositoryFailure
 import com.rafaypair.android.domain.model.TogetherActivity
 import com.rafaypair.android.domain.model.TogetherParticipantState
@@ -88,6 +91,26 @@ class DefaultAssistantRepository(private val api: ApiClient) : AssistantReposito
 
     override suspend fun forgetAll() = call { api.forgetAllAiMemories() }
 
+    override suspend fun currentSession(): AiSession? = call {
+        api.currentAiSession().session?.toDomain()
+    }
+
+    override suspend fun startSession(): AiSession? = call {
+        api.startAiSession().session?.toDomain()
+    }
+
+    override suspend fun announceIdentity(id: String): AiSession? = call {
+        api.announceAiIdentity(id).session?.toDomain()
+    }
+
+    override suspend fun endSession(id: String): AiSession? = call {
+        api.endAiSession(id).session?.toDomain()
+    }
+
+    override suspend fun voiceTicket(id: String): AiVoiceTicketDto = call {
+        api.aiVoiceTicket(id)
+    }
+
     private suspend fun <T> call(block: suspend () -> T): T =
         try {
             block()
@@ -130,3 +153,10 @@ internal fun AiMemoryDto.toDomain(): AiMemory? {
     val known = AiMemoryCategory.fromWire(category) ?: return null
     return AiMemory(id = id, category = known, content = content, author = author)
 }
+
+internal fun AiSessionDto.toDomain(): AiSession = AiSession(
+    id = id,
+    status = status,
+    identityAnnounced = identityAnnounced,
+    identityDisclosure = identityDisclosure,
+)

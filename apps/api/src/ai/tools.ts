@@ -252,6 +252,25 @@ export function listTools(): readonly {
   }));
 }
 
+/**
+ * The tool declarations handed to the provider.
+ *
+ * Derived from the same registry and the same Zod schemas the server validates
+ * against, so the model's view of a tool cannot drift from the server's. A
+ * declaration is a description of what may be *asked for*; it grants nothing.
+ */
+export function toolDeclarations(): readonly {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}[] {
+  return [...registry.values()].map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: z.toJSONSchema(tool.schema) as Record<string, unknown>,
+  }));
+}
+
 export interface ToolCall {
   readonly callId: string;
   readonly name: string;

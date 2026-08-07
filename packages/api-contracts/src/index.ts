@@ -416,6 +416,39 @@ export const realtimeTicketResponseSchema = z.object({
   webSocketUrl: z.string(),
 });
 
+/**
+ * The AI voice socket.
+ *
+ * A distinct application protocol from the realtime event socket so a ticket
+ * for one can never open the other, even if both are valid strings of the same
+ * shape.
+ */
+export const aiVoiceApplicationProtocol = "rafaypair.voice.v1" as const;
+
+export function aiVoiceWebSocketProtocols(
+  ticket: string,
+): readonly [typeof aiVoiceApplicationProtocol, string] {
+  const validated = realtimeTicketSchema.parse(ticket);
+  return [
+    aiVoiceApplicationProtocol,
+    `${realtimeTicketProtocolPrefix}${validated}`,
+  ];
+}
+
+export const aiVoiceTicketResponseSchema = z.object({
+  ticket: realtimeTicketSchema,
+  expiresAt: z.string().datetime(),
+  webSocketUrl: z.string(),
+  /** Sample rate and framing the client must send. Server-stated, not negotiated. */
+  audio: z.object({
+    encoding: z.literal("pcm16"),
+    sampleRateHz: z.literal(16_000),
+    channels: z.literal(1),
+  }),
+});
+
+export type AiVoiceTicketResponse = z.infer<typeof aiVoiceTicketResponseSchema>;
+
 export const realtimeEventEnvelopeSchema = z.object({
   version: z.literal(1),
   id: z.string().uuid(),

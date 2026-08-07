@@ -75,3 +75,11 @@ data class AiMemoryPage(
     val memories: List<AiMemory>,
     val limit: Int,
 )
+
+data class AiSession(
+    val id: String,
+    val status: String,
+    val identityAnnounced: Boolean,
+    /** Server-supplied so a client cannot quietly drop or reword it. */
+    val identityDisclosure: String,
+)

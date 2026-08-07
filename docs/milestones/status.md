@@ -104,7 +104,19 @@ Status: server, authorization layer, and all three client surfaces implemented a
 
 One fault was found by the module's own test and fixed rather than documented: the API key was reachable through `JSON.stringify(provider)`, because TypeScript's `private` is erased at runtime and leaves an enumerable own property. It is now a `#` field, which is invisible to serialization.
 
-**Surfaces.** Together mode and the memory controls are built natively on all three clients — SwiftUI (`Features/Together/TogetherView.swift`), Compose (`ui/together/TogetherScreen.kt`), and React (`pages/TogetherPage.tsx`, `pages/AssistantPage.tsx`). Voice sessions run on the phones, where the microphone state is visible for the whole session; the Web client says so and offers the memory controls, because a user is entitled to read and delete what is remembered about them in the same place they read anything else about their account.
+**The voice bridge.** Audio flows client → server → provider and back. The server sits in the middle deliberately: it holds the provider credential, it composes the instructions, and it is the only thing that may authorize a tool call. A client that spoke to the provider directly would have to be trusted with all three.
+
+- The socket is opened with a single-use ticket carried in the subprotocol header, never in a query string — a credential in a URL is written into every proxy and access log on the path. Only the ticket's hash is stored, and redemption clears it in the same conditional `UPDATE` that checks it, so two sockets racing on one ticket cannot both be admitted.
+- The socket is refused until `identity_announced` is true. Generated audio cannot reach someone who was never told what they are hearing, and that is a database predicate rather than a client convention.
+- A second connection to a live session is refused rather than silently taking over the first one's audio.
+- Tool calls from the model are routed back through the same `invokeTool` authorization and the same audit row as the HTTP dispatch route. There is no second, looser path for the socket. A mutation still stops and asks the user in their interface — never by voice, because a spoken "shall I?" answered aloud would make the model both the asker and the recorder of the answer.
+- Both native clients validate the server-supplied socket URL against their configured API origin before connecting. A redirected socket would carry a live microphone wherever the redirect pointed; iOS and Android each have tests that refuse a different host, a different port, a different path, and any URL carrying a query or credentials.
+- Capture and playback are torn down on every stop rather than left allocated, so "the session ended" and "the microphone is off" cannot come apart. The listening indicator reads the audio engine's actual state, not the app's belief about it.
+- Nothing writes audio or transcript to disk or to the database. The session row records that a session ran and how much of the allowance it used; what was said is not ours to keep.
+
+The iOS microphone usage string was rewritten while building this. It previously said audio is never uploaded, which was true when breathing was the only use of the microphone and would have become false the moment a voice session opened. It now describes both uses separately and says plainly that nothing listens outside them.
+
+**Surfaces.** Together mode, the memory controls, and the voice session are built natively on all three clients — SwiftUI (`Features/Together/TogetherView.swift`), Compose (`ui/together/TogetherScreen.kt`), and React (`pages/TogetherPage.tsx`, `pages/AssistantPage.tsx`). Voice runs on the phones, where the microphone state is visible for the whole session and the disclosure stays on screen for its whole duration rather than appearing once and scrolling away; the Web client says so and offers the memory controls, because a user is entitled to read and delete what is remembered about them in the same place they read anything else about their account.
 
 ## Build and device setup
 
