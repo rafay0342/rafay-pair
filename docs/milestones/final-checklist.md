@@ -2,7 +2,7 @@
 
 Master specification §30 lists twenty-six things to prove before the platform is
 called production-ready. This document records how each was checked on
-2026-08-07, and — for the four that are not yet closed — exactly what is
+2026-08-07, and — for the three that are not yet closed — exactly what is
 outstanding and who can close it.
 
 Two rules were followed while assembling it. A claim is only recorded here if a
@@ -84,14 +84,18 @@ the export together and is already wired into `.github/workflows/release.yml`.
 
 ## Operations
 
-| Item                   | Proof                                                                                                                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CI builds all targets  | `.github/workflows/ci.yml` runs server, web, iOS, Android, Android instrumented, containers, infrastructure, SAST, and security jobs. `release.yml` adds the signed iOS and Android release jobs and staging acceptance. |
-| Rollback exists        | `scripts/rollback-ecs.sh` (previous task definitions, forward-compatible migrations only) and `scripts/rollback-web.sh` (restores a prior immutable release prefix). Both documented in `docs/operations/deployment.md`. |
-| Observability exists   | OpenTelemetry traces via OTLP, structured JSON logs, `/health/live` and `/health/ready`, and a security audit trail (`recordSecurityAudit`). **No metrics exporter yet** — see the gap below.                            |
-| Security review passes | `pnpm audit --audit-level high` reports no known vulnerabilities. CI additionally runs gitleaks, Trivy (vuln, secret, misconfig; HIGH and CRITICAL fail the build), and CodeQL for TypeScript, Kotlin, and Swift.        |
+| Item                   | Proof                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CI builds all targets  | `.github/workflows/ci.yml` runs server, web, iOS, Android, Android instrumented, containers, infrastructure, SAST, and security jobs. `release.yml` adds the signed iOS and Android release jobs and staging acceptance.                                                                                                                                                               |
+| Rollback exists        | `scripts/rollback-ecs.sh` (previous task definitions, forward-compatible migrations only) and `scripts/rollback-web.sh` (restores a prior immutable release prefix). Both documented in `docs/operations/deployment.md`.                                                                                                                                                               |
+| Observability exists   | OpenTelemetry traces and metrics via OTLP, structured JSON logs, `/health/live` and `/health/ready`, and a security audit trail (`recordSecurityAudit`). Three counters: authorization refusals by failure code, realtime events withheld at delivery time, and AI tool decisions by outcome. None carries a user, pair, or session identifier, and a test fails if one is ever added. |
+| Security review passes | `pnpm audit --audit-level high` reports no known vulnerabilities. CI additionally runs gitleaks, Trivy (vuln, secret, misconfig; HIGH and CRITICAL fail the build), and CodeQL for TypeScript, Kotlin, and Swift.                                                                                                                                                                      |
 
 ## What is genuinely not closed
+
+All three need something from outside this machine. None is a piece of unwritten
+software: observability was briefly on this list, and the metrics were built
+rather than left recorded as a gap.
 
 1. **A signed IPA.** Needs the Apple ID added in Xcode → Settings → Accounts.
    Nothing else in the iOS pipeline is unproven.
@@ -102,9 +106,6 @@ the export together and is already wired into `.github/workflows/release.yml`.
 3. **A live voice session.** The transport, authorization, and both clients are
    built and tested; a provider account is needed to hear it. Four values,
    obtained as described in `docs/ai/qwen-provider-contract.md`.
-4. **Metrics.** Traces, logs, health, and audit records exist; counters and
-   histograms do not. This is the one checklist item where the honest answer is
-   "partly", and it is recorded as such rather than counted as passing.
 
 ## Corrections made while checking
 

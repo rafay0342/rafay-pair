@@ -18,6 +18,7 @@ import {
 
 import { mutationGuard } from "../guards.js";
 import { ApiError } from "../errors.js";
+import { recordRealtimeWithheld } from "../telemetry.js";
 import { authenticated } from "../types.js";
 
 const sessionReauthorizationIntervalMs = 5_000;
@@ -681,8 +682,16 @@ async function authorizeAndSendEvents(
             grant.granted &&
             grant.updated_at <= row.occurred_at,
         );
-      if (allowed) send(event);
-      else denied = true;
+      if (allowed) {
+        send(event);
+      } else {
+        denied = true;
+        // Counted here rather than at the request boundary: this is the
+        // mid-flight refusal, the one a queued event takes when consent changed
+        // after it was authorized. If revocation ever stopped taking effect in
+        // flight, this counter would go quiet while traffic continued.
+        recordRealtimeWithheld(replay ? "replay_consent" : "live_consent");
+      }
     }
     await client.query("COMMIT");
     return denied ? "consent_denied" : "allowed";

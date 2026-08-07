@@ -120,7 +120,9 @@ The iOS microphone usage string was rewritten while building this. It previously
 
 ## Final checklist — production readiness
 
-Status: all twenty-six items of master specification §30 checked on 2026-08-07. Twenty-two pass with a command, a test, or a structural property behind them. Four are open, and none of the four is open because it was skipped: a signed IPA needs an Apple ID that only the account holder can add, real-device pulse validation needs a real fingertip and a reference reading, a live voice session needs a provider account, and metrics are the one place where the honest answer is "partly built".
+Status: all twenty-six items of master specification §30 checked on 2026-08-07. Twenty-three pass with a command, a test, or a structural property behind them. Three are open, and each needs something from outside this machine rather than more code: a signed IPA needs an Apple ID only the account holder can add, real-device pulse validation needs a real fingertip and a reference reading, and a live voice session needs a provider account.
+
+Observability was briefly a fourth — traces, logs, health, and audit records existed, but no metrics. Recording that as a known gap would have been the wrong move, so the metrics were built: authorization refusals by failure code, realtime events withheld at delivery time, and AI tool decisions by outcome. What they deliberately do not carry is identity. A metrics store has long retention and looser access than the database, and an attribute naming a user or a pair would quietly turn it into a second record of who is doing what; a test fails if one is ever added. There is no capture metric either, because the server has no concept of whether a camera is running and a metric implying otherwise would be the first step towards it having one.
 
 The evidence, item by item, is in [the final checklist](./final-checklist.md).
 

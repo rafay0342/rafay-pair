@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import type { PoolClient } from "pg";
 
+import { recordAiToolDecision } from "../telemetry.js";
+
 /**
  * The tool registry — the authorization boundary between the model and the
  * product.
@@ -289,6 +291,18 @@ export interface ToolCall {
  * user is never asked to confirm something that would have been refused anyway.
  */
 export async function invokeTool(
+  call: ToolCall,
+  context: ToolContext,
+): Promise<ToolResult> {
+  const result = await authorizeAndRun(call, context);
+  // Recorded for every outcome, including the refusals. A tool that is being
+  // asked for and refused repeatedly is a prompt or product problem, and it is
+  // invisible in a trace unless you already know to look for it.
+  recordAiToolDecision(call.name, result.decision);
+  return result;
+}
+
+async function authorizeAndRun(
   call: ToolCall,
   context: ToolContext,
 ): Promise<ToolResult> {

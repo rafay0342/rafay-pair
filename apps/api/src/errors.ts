@@ -4,6 +4,8 @@ import { ZodError } from "zod";
 
 import { SessionAuthorizationError } from "@rafay-pair/session-coordinator";
 
+import { recordAuthorizationRefusal } from "./telemetry.js";
+
 export class ApiError extends Error {
   public constructor(
     public readonly status: number,
@@ -33,6 +35,10 @@ export function sendProblem(
   } else if (error instanceof SessionAuthorizationError) {
     const mapped = authorizationProblem(error);
     ({ status, code, title, detail } = mapped);
+    // Every authorization refusal passes through here, so this is the one place
+    // that sees all of them. The failure code is a small closed set; nothing
+    // about who was refused is recorded.
+    recordAuthorizationRefusal(error.code);
   } else if (error instanceof ZodError) {
     status = 400;
     code = "VALIDATION_FAILED";
