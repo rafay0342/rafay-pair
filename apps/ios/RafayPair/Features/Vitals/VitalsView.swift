@@ -7,6 +7,7 @@ import SwiftUI
 struct VitalsView: View {
     @State private var store = VitalsStore()
     @State private var capture = PulseCaptureSession()
+    @State private var breathAudio = BreathAudioCaptureSession()
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -25,6 +26,7 @@ struct VitalsView: View {
         .onReceive(tick) { store.now = $0 }
         .onDisappear {
             capture.stop()
+            breathAudio.stop()
             store.cancelMeasurement()
         }
     }
@@ -164,22 +166,80 @@ struct VitalsView: View {
                     Text("Cycle \(phase.cycleIndex + 1) of \(store.breathingPattern.cycles)")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Button("Stop") { store.stopBreathing() }
+                    if store.listenForBreathing {
+                        Text(
+                            breathAudio.audible
+                                ? "Listening — breathe normally."
+                                : "Listening. Hold the phone a little closer."
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    }
+                    Button("Stop") { stopBreathingSession() }
                         .buttonStyle(.bordered)
                 } else {
                     Text(
                         "A paced breath with a longer exhale. Nothing is measured — this is only a rhythm to follow."
                     )
                     .foregroundStyle(.secondary)
+                    Toggle(
+                        "Also estimate my breathing rate from sound",
+                        isOn: $store.listenForBreathing
+                    )
+                    .font(.footnote)
+                    Text(
+                        "Audio becomes a few numbers as it arrives and is never recorded, stored, or sent anywhere."
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
                     HStack {
-                        Button("Calm") { store.startBreathing(.calm(cycles: 6)) }
-                        Button("Box") { store.startBreathing(.box(cycles: 5)) }
-                        Button("Relax") { store.startBreathing(.relax(cycles: 4)) }
+                        Button("Calm") { startBreathingSession(.calm(cycles: 6)) }
+                        Button("Box") { startBreathingSession(.box(cycles: 5)) }
+                        Button("Relax") { startBreathingSession(.relax(cycles: 4)) }
                     }
                     .buttonStyle(.bordered)
+
+                    if let estimate = store.breathingEstimate {
+                        Text(
+                            "Estimated \(estimate.breathsPerMinute, specifier: "%.1f") breaths per minute"
+                        )
+                        .font(.subheadline.weight(.semibold))
+                        Text(
+                            "From sound on this phone · \(estimate.confidenceBand.rawValue) confidence"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    } else if let reason = store.breathingRejection {
+                        Text(store.guidance(for: reason))
+                            .font(.footnote)
+                            .foregroundStyle(Color.orange)
+                    }
+                    if case .denied = breathAudio.state {
+                        Text("Microphone access is off. Enable it in Settings to listen.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if case .unavailable(let reason) = breathAudio.state {
+                        Text(reason).font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
             }
         }
+    }
+
+    private func startBreathingSession(_ pattern: BreathingPattern) {
+        store.startBreathing(pattern)
+        if store.listenForBreathing {
+            Task { await breathAudio.start() }
+        }
+    }
+
+    private func stopBreathingSession() {
+        let hops = breathAudio.hops
+        breathAudio.stop()
+        store.stopBreathing()
+        if !hops.isEmpty { store.finishListening(hops: hops) }
     }
 
     private func breathingLabel(_ phase: BreathingPhase) -> String {

@@ -17,6 +17,7 @@ import {
   QUALITY_GOOD_SCORE,
   RESAMPLE_HZ,
   RESAMPLE_STEP_MS,
+  SUBHARMONIC_MARGIN,
   SUBHARMONIC_RATIO,
 } from "./constants.js";
 import type { ConfidenceBand, QualityBand } from "./types.js";
@@ -108,6 +109,12 @@ export function movingAverage(
   return averaged;
 }
 
+/**
+ * Which way the signal's harmonics fold, and therefore how an ambiguous
+ * correlation peak is resolved. See the constants for the physics.
+ */
+export type HarmonicFold = "signalPerCycle" | "energyPerHalfCycle";
+
 export interface Periodicity {
   /** Maximum normalized autocorrelation over the band, floored at zero. */
   readonly periodicity: number;
@@ -127,6 +134,7 @@ export function periodicityOf(
   filtered: readonly number[],
   minLag: number,
   maxLag: number,
+  fold: HarmonicFold = "signalPerCycle",
 ): Periodicity {
   if (filtered.length <= minLag + 1 || minLag < 1 || maxLag < minLag) {
     return { periodicity: 0, refinedLag: undefined };
@@ -148,10 +156,13 @@ export function periodicityOf(
 
   // Autocorrelation peaks just as strongly at whole multiples of the true
   // period, so an unguarded maximum reports half or a third of the real rate —
-  // the classic octave error, and far worse than reporting nothing. A genuine
-  // subharmonic is distinguishable: if the signal really repeats at lag/k, the
-  // correlation there is comparably high, whereas for a signal whose true
-  // period is `lag` the shorter lag lands antiphase and correlates negatively.
+  // the classic octave error, and far worse than reporting nothing.
+  //
+  // Which way to resolve the ambiguity depends on the signal's physics, so the
+  // caller declares it. A heartbeat produces one cycle per event and a shorter
+  // lag that correlates comparably is the fundamental; breath sound produces two
+  // energy bursts per cycle, so its half-lag always correlates well and may only
+  // win by explaining the signal at least as well as the peak.
   const peakIndex = bestIndex;
   const peak = correlations[peakIndex] as number;
   for (const divisor of [3, 2]) {
@@ -159,7 +170,11 @@ export function periodicityOf(
     const candidateIndex = candidateLag - minLag;
     if (candidateIndex < 0 || candidateIndex >= correlations.length) continue;
     const candidate = correlations[candidateIndex] as number;
-    if (candidate >= SUBHARMONIC_RATIO * peak) {
+    const wins =
+      fold === "signalPerCycle"
+        ? candidate >= SUBHARMONIC_RATIO * peak
+        : candidate >= peak - SUBHARMONIC_MARGIN;
+    if (wins) {
       bestIndex = candidateIndex;
       break;
     }
@@ -247,6 +262,7 @@ export interface StabilityOptions {
   readonly scale: number;
   readonly minLag: number;
   readonly maxLag: number;
+  readonly fold?: HarmonicFold;
 }
 
 /**
@@ -267,7 +283,12 @@ export function stabilityOf(
     start += options.stepSamples
   ) {
     const window = filtered.slice(start, start + options.windowSamples);
-    const result = periodicityOf(window, options.minLag, options.maxLag);
+    const result = periodicityOf(
+      window,
+      options.minLag,
+      options.maxLag,
+      options.fold ?? "signalPerCycle",
+    );
     if (result.refinedLag !== undefined) {
       rates.push(ratePerMinuteFromLag(result.refinedLag));
     }

@@ -257,6 +257,116 @@ class PhysiologyGoldenTest {
         }
     }
 
+    @Serializable
+    private data class AudioFrameVector(
+        val name: String,
+        val sampleRateHz: Int,
+        val pcm: List<Double>,
+        val expectedHops: List<List<Double>>,
+    )
+
+    @Serializable
+    private data class AudioExpectation(
+        val status: String,
+        val reason: String? = null,
+        val breathsPerMinute: Double? = null,
+        val durationMs: Double,
+        val hopCount: Int,
+        val confidence: Double? = null,
+        val confidenceBand: String? = null,
+        val quality: QualityVector,
+    )
+
+    @Serializable
+    private data class AudioSessionVector(
+        val name: String,
+        val measuredAtMs: Double,
+        val hops: List<List<Double>>,
+        val expected: AudioExpectation,
+    )
+
+    private fun List<List<Double>>.toHops(): List<AudioHopFeature> =
+        map { AudioHopFeature(it[0], it[1], it[2], it[3]) }
+
+    @Test
+    fun microphoneFeatureExtractionMatches() {
+        for (name in AUDIO_FRAME_VECTORS) {
+            val vector = loadVector<AudioFrameVector>("breathing-audio/frames", name)
+            // The vector stores PCM as 16-bit integers, which is what a device
+            // delivers; the extractor takes floats in -1..1.
+            val samples = DoubleArray(vector.pcm.size) { vector.pcm[it] / 32_767 }
+            val hops = AudioBreathingEstimator.extractHops(samples, 0.0)
+
+            assertEquals(name, vector.expectedHops.size, hops.size)
+            hops.forEachIndexed { index, hop ->
+                val expected = vector.expectedHops[index]
+                assertEquals(name, expected[0], hop.timestampMs, tolerance)
+                assertEquals(name, expected[1], hop.rms, tolerance)
+                assertEquals(name, expected[2], hop.zeroCrossingRate, tolerance)
+                assertEquals(name, expected[3], hop.peak, tolerance)
+            }
+        }
+    }
+
+    @Test
+    fun clippedRecordingHasNoUsableHops() {
+        val vector = loadVector<AudioFrameVector>("breathing-audio/frames", "clipped-input")
+        val hops = vector.expectedHops.toHops()
+        assertTrue(hops.isNotEmpty())
+        assertTrue(hops.none { AudioBreathingEstimator.isHopUsable(it) })
+    }
+
+    @Test
+    fun microphoneBreathingVectorsMatch() {
+        for (name in AUDIO_SESSION_VECTORS) {
+            val vector = loadVector<AudioSessionVector>("breathing-audio", name)
+            val actual = AudioBreathingEstimator.estimate(
+                vector.hops.toHops(), vector.measuredAtMs,
+            )
+
+            assertEquals(name, vector.expected.status, actual.statusName)
+            assertEquals(name, vector.expected.hopCount, actual.hopCount)
+            assertQuality(actual.quality, vector.expected.quality, name)
+
+            when (actual) {
+                is AudioBreathingResult.Measured -> {
+                    assertEquals(
+                        name,
+                        vector.expected.breathsPerMinute!!,
+                        actual.breathsPerMinute,
+                        tolerance,
+                    )
+                    assertEquals(
+                        name, vector.expected.confidenceBand, actual.confidenceBand.wireName,
+                    )
+                    assertEquals(name, "phone_microphone", actual.source)
+                    assertEquals(name, "app_estimated", actual.kind)
+                }
+
+                is AudioBreathingResult.Rejected ->
+                    assertEquals(name, vector.expected.reason, actual.reason.wireName)
+            }
+        }
+    }
+
+    @Test
+    fun microphoneRecoversTheCycleNotTheBurstRate() {
+        // Breath sound is loud on the inhale and again on the exhale, so a naive
+        // peak search reports double. This is the assertion that catches it.
+        val truths = mapOf("calm-11-breaths" to 11.0, "elevated-18-breaths" to 18.0)
+        for ((name, truth) in truths) {
+            val vector = loadVector<AudioSessionVector>("breathing-audio", name)
+            val actual = AudioBreathingEstimator.estimate(
+                vector.hops.toHops(), vector.measuredAtMs,
+            )
+            assertTrue(name, actual is AudioBreathingResult.Measured)
+            assertTrue(
+                name,
+                abs((actual as AudioBreathingResult.Measured).breathsPerMinute - truth) < 1,
+            )
+        }
+    }
+
     @Test
     fun guidedBreathingSchedule() {
         val calm = BreathingPattern.calm(3)
@@ -316,6 +426,16 @@ class PhysiologyGoldenTest {
             "post-exercise-124bpm",
             "short-session",
             "sliding-finger",
+        )
+
+        val AUDIO_FRAME_VECTORS = listOf("clipped-input", "steady-breathing")
+
+        val AUDIO_SESSION_VECTORS = listOf(
+            "calm-11-breaths",
+            "elevated-18-breaths",
+            "session-too-short",
+            "silent-room",
+            "voiced-speech-intrusion",
         )
 
         val BREATHING_VECTORS = listOf(

@@ -191,3 +191,70 @@ function round3(value: number): number {
 function round6(value: number): number {
   return Math.round(value * 1e6) / 1e6;
 }
+
+export interface AudioSynthOptions {
+  readonly breathsPerMinute: number;
+  readonly durationMs: number;
+  /** Peak band energy of a breath, in normalized audio units. */
+  readonly breathLevel?: number;
+  /** Steady broadband room noise. */
+  readonly noiseLevel?: number;
+  /** Sustained low-zero-crossing tone modelling voiced speech intrusion. */
+  readonly speechLevel?: number;
+  /** Constant offset that pushes hops past the clipping guard. */
+  readonly clipping?: boolean;
+  readonly seed?: number;
+}
+
+/**
+ * Synthesises microphone samples for a breathing session.
+ *
+ * A breath is modelled as what it acoustically is: a burst of band-limited
+ * turbulence, loudest at mid-inhale and mid-exhale and near-silent at the turns.
+ * That is why the envelope is periodic at twice the breathing rate in energy but
+ * once per cycle in its inhale/exhale asymmetry — the estimator recovers the
+ * cycle, not the burst.
+ */
+export function synthesiseBreathAudio(options: AudioSynthOptions): number[] {
+  const {
+    breathsPerMinute,
+    durationMs,
+    breathLevel = 0.06,
+    noiseLevel = 0.0025,
+    speechLevel = 0,
+    clipping = false,
+    seed = 20260809,
+  } = options;
+
+  const rng = new Rng(seed);
+  const sampleRate = 16_000;
+  const total = Math.floor((durationMs / 1000) * sampleRate);
+  const samples: number[] = new Array(total);
+  const cycleSeconds = 60 / breathsPerMinute;
+
+  for (let index = 0; index < total; index += 1) {
+    const seconds = index / sampleRate;
+    const phase = (seconds % cycleSeconds) / cycleSeconds;
+
+    // Inhale occupies the first 40% of the cycle, exhale the next 45%, with a
+    // quiet turn between them — the shape that makes breath audible at all.
+    let envelope = 0;
+    if (phase < 0.4) {
+      envelope = Math.sin((phase / 0.4) * Math.PI);
+    } else if (phase >= 0.45 && phase < 0.9) {
+      envelope = 0.85 * Math.sin(((phase - 0.45) / 0.45) * Math.PI);
+    }
+
+    // Turbulence is broadband; white noise shaped by the envelope is a faithful
+    // stand-in once the engine's band-pass has run.
+    const turbulence = (rng.next() * 2 - 1) * breathLevel * envelope;
+    const room = (rng.next() * 2 - 1) * noiseLevel;
+    const voiced =
+      speechLevel > 0 ? speechLevel * Math.sin(2 * Math.PI * 180 * seconds) : 0;
+
+    let value = turbulence + room + voiced;
+    if (clipping) value = value > 0 ? value + 0.99 : value - 0.99;
+    samples[index] = Math.max(-1, Math.min(1, value));
+  }
+  return samples;
+}

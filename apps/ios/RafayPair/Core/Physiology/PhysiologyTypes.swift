@@ -222,6 +222,74 @@ struct BreathingPhaseState: Sendable, Equatable {
     var remainingMs: Double
 }
 
+/// One hop of microphone-derived features.
+///
+/// This type deliberately carries no audio. It is the boundary the retention
+/// rule is enforced at: three scalars at 30 Hz, from which no intelligible
+/// content is reconstructible.
+struct AudioHopFeature: Sendable {
+    var timestampMs: Double
+    /// Root-mean-square energy of the band-passed hop.
+    var rms: Double
+    var zeroCrossingRate: Double
+    /// Peak absolute amplitude before filtering, used to detect clipping.
+    var peak: Double
+}
+
+enum AudioBreathingRejectionReason: String, Sendable {
+    case tooShort
+    case notAudible
+    case tooNoisy
+    case noPeriodicity
+    case unstable
+    case outOfRange
+}
+
+struct MeasuredAudioBreathing: Sendable {
+    var breathsPerMinute: Double
+    var durationMs: Double
+    var hopCount: Int
+    var effectiveSampleRateHz: Double
+    var quality: SignalQuality
+    var confidence: Double
+    var confidenceBand: ConfidenceBand
+    var measuredAtMs: Double
+
+    let source = "phone_microphone"
+    let kind = "app_estimated"
+}
+
+enum AudioBreathingResult: Sendable {
+    case measured(MeasuredAudioBreathing)
+    case rejected(
+        reason: AudioBreathingRejectionReason,
+        durationMs: Double,
+        hopCount: Int,
+        quality: SignalQuality
+    )
+
+    var statusName: String {
+        switch self {
+        case .measured: "measured"
+        case .rejected: "rejected"
+        }
+    }
+
+    var quality: SignalQuality {
+        switch self {
+        case .measured(let breathing): breathing.quality
+        case .rejected(_, _, _, let quality): quality
+        }
+    }
+
+    var hopCount: Int {
+        switch self {
+        case .measured(let breathing): breathing.hopCount
+        case .rejected(_, _, let count, _): count
+        }
+    }
+}
+
 enum CalorieActivity: String, Sendable {
     case rest
     case guidedBreathing
@@ -275,7 +343,30 @@ enum PhysiologyTuning {
     static let qualityFairScore = 0.5
     static let confidenceHigh = 0.7
     static let confidenceModerate = 0.45
+    /// One physical event per signal cycle — a heartbeat, a chest rise.
     static let subharmonicRatio = 0.85
+    /// Two energy bursts per physical cycle — breath sound, loud on the inhale
+    /// and again on the exhale.
+    static let subharmonicMargin = 0.02
+
+    static let audioSampleRateHz = 16_000.0
+    static let audioHighPassHz = 200.0
+    static let audioLowPassHz = 2_000.0
+    static let audioHopSamples = 533
+
+    static let audioRmsFloor = 0.0015
+    static let audioPeakClip = 0.98
+    static let audioZcrMin = 0.02
+    static let audioZcrMax = 0.45
+
+    static let micMotionScale = 0.05
+    static let micConfidenceFullDurationMs = 45_000.0
+    static let micMinDurationMs = 20_000.0
+    /// Lower than the camera estimate: calm breathing legitimately has quiet gaps.
+    static let micMinCoverage = 0.6
+    static let micMinPeriodicity = 0.4
+    static let micMaxMotion = 0.6
+    static let micMinStability = 0.3
 
     static let fingerMinRed = 60.0
     static let fingerMaxGreen = 190.0

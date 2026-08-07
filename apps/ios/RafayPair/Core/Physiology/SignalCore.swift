@@ -7,6 +7,13 @@ import Foundation
 /// increasing index order so that the TypeScript and Kotlin engines reproduce
 /// the same rounding.
 enum SignalCore {
+    /// Which way the signal's harmonics fold, and therefore how an ambiguous
+    /// correlation peak is resolved. See `PhysiologyTuning` for the physics.
+    enum HarmonicFold {
+        case signalPerCycle
+        case energyPerHalfCycle
+    }
+
     struct TimedSample {
         var timestampMs: Double
         var value: Double
@@ -25,6 +32,7 @@ enum SignalCore {
         var scale: Double
         var minLag: Int
         var maxLag: Int
+        var fold: HarmonicFold = .signalPerCycle
     }
 
     static func clamp(_ value: Double, _ low: Double, _ high: Double) -> Double {
@@ -105,7 +113,8 @@ enum SignalCore {
     static func periodicity(
         _ filtered: [Double],
         minLag: Int,
-        maxLag: Int
+        maxLag: Int,
+        fold: HarmonicFold = .signalPerCycle
     ) -> Periodicity {
         guard filtered.count > minLag + 1, minLag >= 1, maxLag >= minLag else {
             return Periodicity(periodicity: 0, refinedLag: nil)
@@ -128,8 +137,10 @@ enum SignalCore {
 
         // Autocorrelation peaks just as strongly at whole multiples of the true
         // period, so an unguarded maximum reports half or a third of the real
-        // rate. A genuine subharmonic correlates comparably at lag/k; a false
-        // one lands antiphase and correlates negatively.
+        // rate. Which way to resolve the ambiguity depends on the signal's
+        // physics, so the caller declares it: a heartbeat produces one cycle per
+        // event, while breath sound produces two energy bursts per cycle and its
+        // half-lag therefore always correlates well.
         let peakIndex = bestIndex
         let peak = correlations[peakIndex]
         for divisor in [3, 2] {
@@ -138,7 +149,12 @@ enum SignalCore {
             )
             let candidateIndex = candidateLag - minLag
             guard candidateIndex >= 0, candidateIndex < correlations.count else { continue }
-            if correlations[candidateIndex] >= PhysiologyTuning.subharmonicRatio * peak {
+            let candidate = correlations[candidateIndex]
+            let wins =
+                fold == .signalPerCycle
+                ? candidate >= PhysiologyTuning.subharmonicRatio * peak
+                : candidate >= peak - PhysiologyTuning.subharmonicMargin
+            if wins {
                 bestIndex = candidateIndex
                 break
             }
@@ -221,7 +237,9 @@ enum SignalCore {
         var start = 0
         while start + options.windowSamples <= filtered.count {
             let window = Array(filtered[start..<(start + options.windowSamples)])
-            let result = periodicity(window, minLag: options.minLag, maxLag: options.maxLag)
+            let result = periodicity(
+                window, minLag: options.minLag, maxLag: options.maxLag, fold: options.fold
+            )
             if let lag = result.refinedLag {
                 rates.append(ratePerMinute(fromLag: lag))
             }

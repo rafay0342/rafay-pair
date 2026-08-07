@@ -18,6 +18,8 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>RafayPair listens during a breathing session you start, to estimate your breathing rhythm on this phone. Audio is turned into a few numbers as it arrives and is never recorded, stored, or uploaded.</string>
     <key>NSCameraUsageDescription</key>
     <string>RafayPair uses the camera on this phone to detect your body position for local workouts. Video is analysed on-device and never recorded, stored, or uploaded.</string>
     <key>ITSAppUsesNonExemptEncryption</key>

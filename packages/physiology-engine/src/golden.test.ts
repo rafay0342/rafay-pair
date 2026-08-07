@@ -10,11 +10,18 @@ import {
   BOX_PATTERN,
   CALM_PATTERN,
 } from "./breathingEngine.js";
+import {
+  estimateAudioBreathing,
+  extractAudioHops,
+  isHopUsable,
+} from "./audioBreathingEngine.js";
 import { estimateCalories } from "./calorieEngine.js";
 import { PULSE_FRESHNESS_MS } from "./constants.js";
 import { isPulseFresh, pulseAgeMs } from "./freshness.js";
 import { estimatePulse } from "./pulseEngine.js";
 import type {
+  AudioBreathingResult,
+  AudioHopFeature,
   BreathingResult,
   BreathingSample,
   CalorieEstimate,
@@ -361,5 +368,151 @@ describe("pulse freshness", () => {
 
   it("never reports a negative age from a clock that stepped backwards", () => {
     expect(pulseAgeMs(measured, 999_000)).toBe(0);
+  });
+});
+
+interface AudioFrameVector {
+  readonly name: string;
+  readonly sampleRateHz: number;
+  readonly pcm: readonly number[];
+  readonly expectedHops: readonly [number, number, number, number][];
+}
+
+interface AudioSessionVector {
+  readonly name: string;
+  readonly measuredAtMs: number;
+  readonly hops: readonly [number, number, number, number][];
+  readonly expected: AudioBreathingResult;
+}
+
+function toHops(
+  packed: readonly [number, number, number, number][],
+): AudioHopFeature[] {
+  return packed.map(([timestampMs, rms, zeroCrossingRate, peak]) => ({
+    timestampMs,
+    rms,
+    zeroCrossingRate,
+    peak,
+  }));
+}
+
+describe("microphone feature extraction", () => {
+  const files = readdirSync(
+    path.join(goldenRoot, "breathing-audio", "frames"),
+  ).sort();
+
+  for (const file of files) {
+    it(file, () => {
+      const vector = readJson<AudioFrameVector>(
+        "breathing-audio",
+        "frames",
+        file,
+      );
+      // The vector stores PCM as 16-bit integers, which is what a device
+      // actually delivers; the extractor takes floats in [-1, 1].
+      const samples = vector.pcm.map((value) => value / 32_767);
+      const hops = extractAudioHops(samples, 0);
+
+      expect(hops).toHaveLength(vector.expectedHops.length);
+      hops.forEach((hop, index) => {
+        const [timestampMs, rms, zeroCrossingRate, peak] = vector.expectedHops[
+          index
+        ] as [number, number, number, number];
+        expect(
+          hop.timestampMs,
+          `${vector.name}[${String(index)}].t`,
+        ).toBeCloseTo(timestampMs, 6);
+        expect(hop.rms, `${vector.name}[${String(index)}].rms`).toBeCloseTo(
+          rms,
+          6,
+        );
+        expect(
+          hop.zeroCrossingRate,
+          `${vector.name}[${String(index)}].zcr`,
+        ).toBeCloseTo(zeroCrossingRate, 6);
+        expect(hop.peak, `${vector.name}[${String(index)}].peak`).toBeCloseTo(
+          peak,
+          6,
+        );
+      });
+    });
+  }
+
+  it("rejects every hop of a clipped recording", () => {
+    const vector = readJson<AudioFrameVector>(
+      "breathing-audio",
+      "frames",
+      "clipped-input.json",
+    );
+    const hops = toHops(vector.expectedHops);
+    expect(hops.length).toBeGreaterThan(0);
+    expect(hops.every((hop) => !isHopUsable(hop))).toBe(true);
+  });
+});
+
+describe("microphone breathing vectors", () => {
+  const files = readdirSync(path.join(goldenRoot, "breathing-audio"))
+    .filter((entry) => entry.endsWith(".json"))
+    .sort();
+
+  for (const file of files) {
+    it(file, () => {
+      const vector = readJson<AudioSessionVector>("breathing-audio", file);
+      const actual = estimateAudioBreathing(
+        toHops(vector.hops),
+        vector.measuredAtMs,
+      );
+      const expected = vector.expected;
+
+      expect(actual.status, vector.name).toBe(expected.status);
+      expect(actual.hopCount, vector.name).toBe(expected.hopCount);
+      expectQuality(actual, expected, vector.name);
+
+      if (actual.status === "measured" && expected.status === "measured") {
+        expect(actual.breathsPerMinute, vector.name).toBeCloseTo(
+          expected.breathsPerMinute,
+          6,
+        );
+        expect(actual.confidenceBand, vector.name).toBe(
+          expected.confidenceBand,
+        );
+        expect(actual.source).toBe("phone_microphone");
+        expect(actual.kind).toBe("app_estimated");
+      }
+      if (actual.status === "rejected" && expected.status === "rejected") {
+        expect(actual.reason, vector.name).toBe(expected.reason);
+      }
+    });
+  }
+
+  it("recovers the synthesised rate despite two energy bursts per cycle", () => {
+    // Breath sound is loud on the inhale and again on the exhale, so a naive
+    // peak search reports double. This is the assertion that catches it.
+    const truths: Record<string, number> = {
+      "calm-11-breaths.json": 11,
+      "elevated-18-breaths.json": 18,
+    };
+    for (const [file, truth] of Object.entries(truths)) {
+      const vector = readJson<AudioSessionVector>("breathing-audio", file);
+      expect(vector.expected.status, file).toBe("measured");
+      if (vector.expected.status !== "measured") continue;
+      expect(
+        Math.abs(vector.expected.breathsPerMinute - truth),
+        file,
+      ).toBeLessThan(1);
+    }
+  });
+
+  it("carries no audio in the type the engine consumes", () => {
+    const vector = readJson<AudioSessionVector>(
+      "breathing-audio",
+      "calm-11-breaths.json",
+    );
+    // Each hop is exactly four numbers. If audio were ever threaded through
+    // this boundary, the vector shape would have to change and this fails.
+    for (const hop of vector.hops) {
+      expect(hop).toHaveLength(4);
+      for (const value of hop) expect(typeof value).toBe("number");
+    }
   });
 });

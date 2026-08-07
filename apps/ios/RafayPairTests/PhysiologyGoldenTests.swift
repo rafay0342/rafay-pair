@@ -301,6 +301,136 @@ final class PhysiologyGoldenTests: XCTestCase {
         }
     }
 
+    // MARK: - Microphone breathing
+
+    private struct AudioFrameVector: Decodable {
+        let name: String
+        let sampleRateHz: Int
+        let pcm: [Double]
+        let expectedHops: [[Double]]
+    }
+
+    private struct AudioExpectation: Decodable {
+        let status: String
+        let reason: String?
+        let breathsPerMinute: Double?
+        let durationMs: Double
+        let hopCount: Int
+        let confidence: Double?
+        let confidenceBand: String?
+        let quality: QualityVector
+    }
+
+    private struct AudioSessionVector: Decodable {
+        let name: String
+        let measuredAtMs: Double
+        let hops: [[Double]]
+        let expected: AudioExpectation
+    }
+
+    private static let audioFrameVectors = ["clipped-input", "steady-breathing"]
+    private static let audioSessionVectors = [
+        "calm-11-breaths",
+        "elevated-18-breaths",
+        "session-too-short",
+        "silent-room",
+        "voiced-speech-intrusion",
+    ]
+
+    func testMicrophoneFeatureExtraction() throws {
+        for name in Self.audioFrameVectors {
+            let vector = try loadVector(
+                AudioFrameVector.self, named: name, in: "breathing-audio/frames"
+            )
+            // The vector stores PCM as 16-bit integers, which is what a device
+            // delivers; the extractor takes floats in -1...1.
+            let samples = vector.pcm.map { $0 / 32_767 }
+            let hops = AudioBreathingEstimator.extractHops(samples, startTimestampMs: 0)
+
+            XCTAssertEqual(hops.count, vector.expectedHops.count, name)
+            for (index, hop) in hops.enumerated() {
+                let expected = vector.expectedHops[index]
+                XCTAssertEqual(hop.timestampMs, expected[0], accuracy: tolerance, name)
+                XCTAssertEqual(hop.rms, expected[1], accuracy: tolerance, name)
+                XCTAssertEqual(
+                    hop.zeroCrossingRate, expected[2], accuracy: tolerance, name
+                )
+                XCTAssertEqual(hop.peak, expected[3], accuracy: tolerance, name)
+            }
+        }
+    }
+
+    func testClippedRecordingHasNoUsableHops() throws {
+        let vector = try loadVector(
+            AudioFrameVector.self, named: "clipped-input", in: "breathing-audio/frames"
+        )
+        let hops = vector.expectedHops.map {
+            AudioHopFeature(timestampMs: $0[0], rms: $0[1], zeroCrossingRate: $0[2], peak: $0[3])
+        }
+        XCTAssertFalse(hops.isEmpty)
+        XCTAssertTrue(hops.allSatisfy { !AudioBreathingEstimator.isHopUsable($0) })
+    }
+
+    func testMicrophoneBreathingVectors() throws {
+        for name in Self.audioSessionVectors {
+            let vector = try loadVector(
+                AudioSessionVector.self, named: name, in: "breathing-audio"
+            )
+            let hops = vector.hops.map {
+                AudioHopFeature(
+                    timestampMs: $0[0], rms: $0[1], zeroCrossingRate: $0[2], peak: $0[3]
+                )
+            }
+            let actual = AudioBreathingEstimator.estimate(
+                hops, measuredAtMs: vector.measuredAtMs
+            )
+
+            XCTAssertEqual(actual.statusName, vector.expected.status, name)
+            XCTAssertEqual(actual.hopCount, vector.expected.hopCount, name)
+            assertQuality(actual.quality, vector.expected.quality, name)
+
+            switch actual {
+            case .measured(let breathing):
+                XCTAssertEqual(
+                    breathing.breathsPerMinute,
+                    try XCTUnwrap(vector.expected.breathsPerMinute),
+                    accuracy: tolerance, name
+                )
+                XCTAssertEqual(
+                    breathing.confidenceBand.rawValue, vector.expected.confidenceBand, name
+                )
+                XCTAssertEqual(breathing.source, "phone_microphone", name)
+                XCTAssertEqual(breathing.kind, "app_estimated", name)
+            case .rejected(let reason, _, _, _):
+                XCTAssertEqual(reason.rawValue, vector.expected.reason, name)
+            }
+        }
+    }
+
+    func testMicrophoneRecoversTheCycleNotTheBurstRate() throws {
+        // Breath sound is loud on the inhale and again on the exhale, so a naive
+        // peak search reports double. This is the assertion that catches it.
+        for (name, truth) in [("calm-11-breaths", 11.0), ("elevated-18-breaths", 18.0)] {
+            let vector = try loadVector(
+                AudioSessionVector.self, named: name, in: "breathing-audio"
+            )
+            let hops = vector.hops.map {
+                AudioHopFeature(
+                    timestampMs: $0[0], rms: $0[1], zeroCrossingRate: $0[2], peak: $0[3]
+                )
+            }
+            guard
+                case .measured(let breathing) = AudioBreathingEstimator.estimate(
+                    hops, measuredAtMs: vector.measuredAtMs
+                )
+            else {
+                XCTFail("\(name) should be measurable")
+                continue
+            }
+            XCTAssertLessThan(abs(breathing.breathsPerMinute - truth), 1, name)
+        }
+    }
+
     // MARK: - Guided breathing and freshness
 
     func testGuidedBreathingSchedule() {

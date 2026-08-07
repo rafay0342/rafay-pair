@@ -14,8 +14,23 @@ export const QUALITY_GOOD_SCORE = 0.75;
 export const QUALITY_FAIR_SCORE = 0.5;
 export const CONFIDENCE_HIGH = 0.7;
 export const CONFIDENCE_MODERATE = 0.45;
-/** A candidate at `lag / k` must reach this fraction of the peak to win. */
+/**
+ * How a signal's harmonics fold decides which way an ambiguous correlation peak
+ * should be resolved, and it is a property of the physics rather than a tuning
+ * knob.
+ *
+ * `SUBHARMONIC_RATIO` applies where one physical event produces one signal cycle
+ * — a heartbeat, a chest rise. A peak at twice the true lag is then a
+ * mathematical artifact of periodicity, so a shorter lag that merely correlates
+ * comparably should win.
+ *
+ * `SUBHARMONIC_MARGIN` applies where one physical cycle produces two energy
+ * bursts — breath sound, which is loud on the inhale and again on the exhale.
+ * There the half-lag always correlates well, so the shorter lag may only win by
+ * explaining the signal at least as well as the peak.
+ */
 export const SUBHARMONIC_RATIO = 0.85;
+export const SUBHARMONIC_MARGIN = 0.02;
 
 // Pulse — engines/pulse-estimation-spec/SPEC.md
 export const FINGER_MIN_RED = 60;
@@ -59,6 +74,27 @@ export const BREATHING_MIN_COVERAGE = 0.8;
 export const BREATHING_MIN_PERIODICITY = 0.4;
 export const BREATHING_MAX_MOTION = 0.5;
 export const BREATHING_MIN_STABILITY = 0.3;
+
+// Microphone breathing — engines/breathing-estimation-spec/MICROPHONE.md
+export const AUDIO_SAMPLE_RATE_HZ = 16_000;
+export const AUDIO_HIGH_PASS_HZ = 200;
+export const AUDIO_LOW_PASS_HZ = 2_000;
+/** One hop per 33.3 ms, giving the 30 Hz the shared core expects. */
+export const AUDIO_HOP_SAMPLES = 533;
+
+export const AUDIO_RMS_FLOOR = 0.0015;
+export const AUDIO_PEAK_CLIP = 0.98;
+export const AUDIO_ZCR_MIN = 0.02;
+export const AUDIO_ZCR_MAX = 0.45;
+
+export const MIC_MOTION_SCALE = 0.05;
+export const MIC_CONFIDENCE_FULL_DURATION_MS = 45_000;
+export const MIC_MIN_DURATION_MS = 20_000;
+/** Lower than the camera estimate: calm breathing legitimately has quiet gaps. */
+export const MIC_MIN_COVERAGE = 0.6;
+export const MIC_MIN_PERIODICITY = 0.4;
+export const MIC_MAX_MOTION = 0.6;
+export const MIC_MIN_STABILITY = 0.3;
 
 // Calories — engines/calorie-estimation-spec/SPEC.md
 export const CALORIE_ALGORITHM_VERSION = "1.0.0";

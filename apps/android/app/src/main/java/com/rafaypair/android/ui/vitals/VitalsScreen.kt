@@ -25,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafaypair.android.physiology.BreathingPattern
 import com.rafaypair.android.physiology.BreathingPhase
+import com.rafaypair.android.physiology.BreathAudioCaptureController
 import com.rafaypair.android.physiology.PulseCaptureController
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -72,8 +74,24 @@ fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
         ActivityResultContracts.RequestPermission(),
     ) { granted -> permissionGranted = granted }
 
+    var microphoneGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val requestMicrophone = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> microphoneGranted = granted }
+
     val controller = remember {
         PulseCaptureController(context) { viewModel.onSample(it) }
+    }
+    val breathAudio = remember {
+        BreathAudioCaptureController(
+            onHops = { viewModel.onBreathHops(it) },
+            onFailure = { viewModel.microphoneFailed(it) },
+        )
     }
 
     // A one-second tick is what lets a reading expire on screen rather than
@@ -86,7 +104,15 @@ fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
     }
 
     DisposableEffect(Unit) {
-        onDispose { controller.release() }
+        onDispose {
+            controller.release()
+            breathAudio.stop()
+        }
+    }
+
+    DisposableEffect(state.listening) {
+        if (state.listening) breathAudio.start() else breathAudio.stop()
+        onDispose { }
     }
 
     DisposableEffect(state.measuring) {
@@ -121,8 +147,14 @@ fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
         )
         BreathingCard(
             state = state,
+            microphoneGranted = microphoneGranted,
+            onRequestMicrophone = {
+                requestMicrophone.launch(Manifest.permission.RECORD_AUDIO)
+            },
+            onToggleListen = viewModel::setListenForBreathing,
             onStart = { viewModel.startBreathing(it, System.currentTimeMillis()) },
-            onStop = viewModel::stopBreathing,
+            onStop = { viewModel.stopBreathing(System.currentTimeMillis()) },
+            audioGuidance = viewModel::audioGuidance,
         )
         BloodPressureCard()
     }
@@ -292,8 +324,12 @@ private fun MeasureCard(
 @Composable
 private fun BreathingCard(
     state: VitalsUiState,
+    microphoneGranted: Boolean,
+    onRequestMicrophone: () -> Unit,
+    onToggleListen: (Boolean) -> Unit,
     onStart: (BreathingPattern) -> Unit,
     onStop: () -> Unit,
+    audioGuidance: (com.rafaypair.android.physiology.AudioBreathingRejectionReason) -> String,
 ) {
     Card {
         Column(
@@ -322,6 +358,17 @@ private fun BreathingCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (state.listening) {
+                    Text(
+                        if (state.breathAudible) {
+                            "Listening — breathe normally."
+                        } else {
+                            "Listening. Hold the phone a little closer."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 TextButton(onClick = onStop) { Text("Stop") }
             } else {
                 Text(
@@ -330,10 +377,64 @@ private fun BreathingCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Also estimate my breathing rate from sound",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = state.listenForBreathing,
+                        onCheckedChange = { wanted ->
+                            if (wanted && !microphoneGranted) {
+                                onRequestMicrophone()
+                            } else {
+                                onToggleListen(wanted)
+                            }
+                        },
+                    )
+                }
+                Text(
+                    "Audio becomes a few numbers as it arrives and is never recorded, " +
+                        "stored, or sent anywhere.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { onStart(BreathingPattern.calm(6)) }) { Text("Calm") }
                     TextButton(onClick = { onStart(BreathingPattern.box(5)) }) { Text("Box") }
                     TextButton(onClick = { onStart(BreathingPattern.relax(4)) }) { Text("Relax") }
+                }
+
+                state.breathingEstimate?.let { estimate ->
+                    Text(
+                        "Estimated ${estimate.breathsPerMinute} breaths per minute",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        "From sound on this phone · ${estimate.confidenceBand.wireName} confidence",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.breathingRejection?.let {
+                    Text(
+                        audioGuidance(it),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                state.microphoneError?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }

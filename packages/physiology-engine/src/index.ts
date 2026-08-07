@@ -11,4 +11,9 @@ export {
   totalDurationMs,
 } from "./breathingEngine.js";
 export { estimateCalories } from "./calorieEngine.js";
+export {
+  estimateAudioBreathing,
+  extractAudioHops,
+  isHopUsable,
+} from "./audioBreathingEngine.js";
 export { isPulseFresh, pulseAgeMs } from "./freshness.js";

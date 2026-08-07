@@ -111,20 +111,43 @@ A real subharmonic is distinguishable. If the signal truly repeats at `lag / k`,
 the correlation there is comparably high; if the true period is `lag`, the
 shorter lag lands antiphase and correlates negatively.
 
+Which way to resolve the ambiguity is **a property of the signal's physics**, so
+the caller declares it rather than the core assuming one answer:
+
 ```text
-SUBHARMONIC_RATIO = 0.85
+HarmonicFold = signalPerCycle | energyPerHalfCycle
+
+SUBHARMONIC_RATIO  = 0.85   used by signalPerCycle
+SUBHARMONIC_MARGIN = 0.02   used by energyPerHalfCycle
 
 peakLag = argmax correlation
 for k in [3, 2]:
   candidate = round(peakLag / k)
-  if candidate is inside the band and correlation(candidate) >= SUBHARMONIC_RATIO * correlation(peakLag):
-    bestLag = candidate
-    stop
+  if candidate is outside the band: continue
+  wins = signalPerCycle
+         ? correlation(candidate) >= SUBHARMONIC_RATIO * correlation(peakLag)
+         : correlation(candidate) >= correlation(peakLag) - SUBHARMONIC_MARGIN
+  if wins: bestLag = candidate; stop
 otherwise bestLag = peakLag
 ```
 
 The divisors are tried largest first so the shortest qualifying lag wins, which
 is the fundamental rather than another multiple of it.
+
+`signalPerCycle` is for signals where one physical event produces one signal
+cycle — a heartbeat, a chest rise. A peak at twice the true lag is then a
+mathematical artifact of periodicity, so a shorter lag that merely correlates
+comparably should win.
+
+`energyPerHalfCycle` is for signals where one physical cycle produces two energy
+bursts. Breath sound is the case in hand: it is loud on the inhale and again on
+the exhale, so its half-lag _always_ correlates well and a ratio test would halve
+every rate. There the shorter lag may only win by explaining the signal at least
+as well as the peak.
+
+Using one rule for both was tried and is wrong in one direction or the other:
+the ratio test halved measured breathing rates, and the margin test caused the
+pulse estimator to lose the fundamental and reject as `unstable`.
 
 ### Refinement
 

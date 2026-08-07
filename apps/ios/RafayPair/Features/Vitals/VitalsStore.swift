@@ -20,6 +20,12 @@ final class VitalsStore {
     private(set) var lastRejection: PulseRejectionReason?
     private(set) var breathingPattern = BreathingPattern.calm(cycles: 6)
     private(set) var breathingStartedAt: Date?
+    private(set) var breathingEstimate: MeasuredAudioBreathing?
+    private(set) var breathingRejection: AudioBreathingRejectionReason?
+    /// Off by default: listening is opt-in even inside a session the user
+    /// already started, because a microphone is a distinct expectation from a
+    /// paced animation.
+    var listenForBreathing = false
 
     /// Recomputed from a timer tick so an expired reading stops presenting
     /// itself as current, per master specification §4.
@@ -78,10 +84,43 @@ final class VitalsStore {
     func startBreathing(_ pattern: BreathingPattern) {
         breathingPattern = pattern
         breathingStartedAt = .now
+        breathingEstimate = nil
+        breathingRejection = nil
     }
 
     func stopBreathing() {
         breathingStartedAt = nil
+    }
+
+    /// Scores a finished listening session. A rejection replaces nothing.
+    func finishListening(hops: [AudioHopFeature]) {
+        let result = AudioBreathingEstimator.estimate(
+            hops, measuredAtMs: Date().timeIntervalSince1970 * 1000
+        )
+        switch result {
+        case .measured(let breathing):
+            breathingEstimate = breathing
+            breathingRejection = nil
+        case .rejected(let reason, _, _, _):
+            breathingRejection = reason
+        }
+    }
+
+    func guidance(for reason: AudioBreathingRejectionReason) -> String {
+        switch reason {
+        case .tooShort:
+            "Listening needs about twenty seconds of breathing to say anything."
+        case .notAudible:
+            "Too quiet to hear. Try holding the phone a little closer."
+        case .tooNoisy:
+            "There was too much background sound to pick out breathing."
+        case .noPeriodicity:
+            "No steady rhythm came through."
+        case .unstable:
+            "The rhythm kept changing, so no single rate would be honest."
+        case .outOfRange:
+            "The result was outside a plausible range, so it was discarded."
+        }
     }
 
     func guidance(for reason: PulseRejectionReason) -> String {

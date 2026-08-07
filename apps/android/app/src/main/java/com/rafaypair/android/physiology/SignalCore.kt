@@ -17,6 +17,12 @@ import kotlin.math.sqrt
  * rounding.
  */
 object SignalCore {
+    /**
+     * Which way the signal's harmonics fold, and therefore how an ambiguous
+     * correlation peak is resolved. See [PhysiologyTuning] for the physics.
+     */
+    enum class HarmonicFold { SIGNAL_PER_CYCLE, ENERGY_PER_HALF_CYCLE }
+
     data class TimedSample(val timestampMs: Double, val value: Double)
 
     /**
@@ -32,6 +38,7 @@ object SignalCore {
         val scale: Double,
         val minLag: Int,
         val maxLag: Int,
+        val fold: HarmonicFold = HarmonicFold.SIGNAL_PER_CYCLE,
     )
 
     fun clamp(value: Double, low: Double, high: Double): Double = when {
@@ -106,7 +113,12 @@ object SignalCore {
      * Normalized autocorrelation over a lag band, with subharmonic suppression
      * and parabolic peak refinement.
      */
-    fun periodicity(filtered: DoubleArray, minLag: Int, maxLag: Int): Periodicity {
+    fun periodicity(
+        filtered: DoubleArray,
+        minLag: Int,
+        maxLag: Int,
+        fold: HarmonicFold = HarmonicFold.SIGNAL_PER_CYCLE,
+    ): Periodicity {
         if (filtered.size <= minLag + 1 || minLag < 1 || maxLag < minLag) {
             return Periodicity(0.0, null)
         }
@@ -125,15 +137,23 @@ object SignalCore {
 
         // Autocorrelation peaks just as strongly at whole multiples of the true
         // period, so an unguarded maximum reports half or a third of the real
-        // rate. A genuine subharmonic correlates comparably at lag/k; a false one
-        // lands antiphase and correlates negatively.
+        // rate. Which way to resolve the ambiguity depends on the signal's
+        // physics, so the caller declares it: a heartbeat produces one cycle per
+        // event, while breath sound produces two energy bursts per cycle and its
+        // half-lag therefore always correlates well.
         val peakIndex = bestIndex
         val peak = correlations[peakIndex]
         for (divisor in intArrayOf(3, 2)) {
             val candidateLag = ((minLag + peakIndex).toDouble() / divisor).roundToInt()
             val candidateIndex = candidateLag - minLag
             if (candidateIndex < 0 || candidateIndex >= correlations.size) continue
-            if (correlations[candidateIndex] >= PhysiologyTuning.SUBHARMONIC_RATIO * peak) {
+            val candidate = correlations[candidateIndex]
+            val wins = if (fold == HarmonicFold.SIGNAL_PER_CYCLE) {
+                candidate >= PhysiologyTuning.SUBHARMONIC_RATIO * peak
+            } else {
+                candidate >= peak - PhysiologyTuning.SUBHARMONIC_MARGIN
+            }
+            if (wins) {
                 bestIndex = candidateIndex
                 break
             }
@@ -216,7 +236,7 @@ object SignalCore {
         var start = 0
         while (start + options.windowSamples <= filtered.size) {
             val window = filtered.copyOfRange(start, start + options.windowSamples)
-            val result = periodicity(window, options.minLag, options.maxLag)
+            val result = periodicity(window, options.minLag, options.maxLag, options.fold)
             result.refinedLag?.let { rates.add(ratePerMinuteFromLag(it)) }
             start += options.stepSamples
         }

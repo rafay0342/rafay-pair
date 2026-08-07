@@ -131,6 +131,55 @@ export interface BreathingPhaseState {
   readonly remainingMs: number;
 }
 
+/**
+ * One hop of microphone-derived features.
+ *
+ * This type deliberately carries no audio. It is the boundary the retention rule
+ * is enforced at: three scalars at 30 Hz, roughly 0.4% of the data rate of the
+ * audio itself, from which no intelligible content is reconstructible.
+ */
+export interface AudioHopFeature {
+  readonly timestampMs: number;
+  /** Root-mean-square energy of the band-passed hop. */
+  readonly rms: number;
+  readonly zeroCrossingRate: number;
+  /** Peak absolute amplitude before filtering, used to detect clipping. */
+  readonly peak: number;
+}
+
+export type AudioBreathingRejectionReason =
+  | "tooShort"
+  | "notAudible"
+  | "tooNoisy"
+  | "noPeriodicity"
+  | "unstable"
+  | "outOfRange";
+
+export interface MeasuredAudioBreathing {
+  readonly status: "measured";
+  readonly breathsPerMinute: number;
+  readonly durationMs: number;
+  readonly hopCount: number;
+  readonly effectiveSampleRateHz: number;
+  readonly quality: SignalQuality;
+  readonly confidence: number;
+  readonly confidenceBand: ConfidenceBand;
+  readonly source: "phone_microphone";
+  readonly kind: "app_estimated";
+  readonly measuredAtMs: number;
+}
+
+export interface RejectedAudioBreathing {
+  readonly status: "rejected";
+  readonly reason: AudioBreathingRejectionReason;
+  readonly durationMs: number;
+  readonly hopCount: number;
+  readonly quality: SignalQuality;
+}
+
+export type AudioBreathingResult =
+  MeasuredAudioBreathing | RejectedAudioBreathing;
+
 export type CalorieActivity =
   "rest" | "guidedBreathing" | "squat" | "bodyweightMixed" | "walkingInPlace";
 

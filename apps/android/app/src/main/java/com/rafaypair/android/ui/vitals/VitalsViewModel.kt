@@ -1,6 +1,10 @@
 package com.rafaypair.android.ui.vitals
 
 import androidx.lifecycle.ViewModel
+import com.rafaypair.android.physiology.AudioBreathingEstimator
+import com.rafaypair.android.physiology.AudioBreathingRejectionReason
+import com.rafaypair.android.physiology.AudioBreathingResult
+import com.rafaypair.android.physiology.AudioHopFeature
 import com.rafaypair.android.physiology.BreathingEstimator
 import com.rafaypair.android.physiology.BreathingPattern
 import com.rafaypair.android.physiology.BreathingPhase
@@ -29,6 +33,17 @@ data class VitalsUiState(
     val cameraError: String? = null,
     val breathingPattern: BreathingPattern = BreathingPattern.calm(6),
     val breathingStartedAtMs: Long? = null,
+    /**
+     * Off by default: listening is opt-in even inside a session the user already
+     * started, because a microphone is a distinct expectation from a paced
+     * animation.
+     */
+    val listenForBreathing: Boolean = false,
+    val listening: Boolean = false,
+    val breathAudible: Boolean = false,
+    val breathingEstimate: AudioBreathingResult.Measured? = null,
+    val breathingRejection: AudioBreathingRejectionReason? = null,
+    val microphoneError: String? = null,
     val nowMs: Long = 0L,
 ) {
     val pulseIsFresh: Boolean
@@ -57,6 +72,7 @@ data class VitalsUiState(
  */
 class VitalsViewModel : ViewModel() {
     private val samples = mutableListOf<PulseSample>()
+    private val hops = mutableListOf<AudioHopFeature>()
 
     private val _state = MutableStateFlow(VitalsUiState())
     val state: StateFlow<VitalsUiState> = _state.asStateFlow()
@@ -118,11 +134,72 @@ class VitalsViewModel : ViewModel() {
     }
 
     fun startBreathing(pattern: BreathingPattern, nowMs: Long) {
-        _state.update { it.copy(breathingPattern = pattern, breathingStartedAtMs = nowMs) }
+        hops.clear()
+        _state.update {
+            it.copy(
+                breathingPattern = pattern,
+                breathingStartedAtMs = nowMs,
+                listening = it.listenForBreathing,
+                breathAudible = false,
+                breathingEstimate = null,
+                breathingRejection = null,
+                microphoneError = null,
+            )
+        }
     }
 
-    fun stopBreathing() {
-        _state.update { it.copy(breathingStartedAtMs = null) }
+    fun setListenForBreathing(enabled: Boolean) {
+        _state.update { it.copy(listenForBreathing = enabled) }
+    }
+
+    fun onBreathHops(produced: List<AudioHopFeature>) {
+        if (!_state.value.listening) return
+        hops.addAll(produced)
+        val audible = produced.lastOrNull()?.let(AudioBreathingEstimator::isHopUsable) ?: false
+        _state.update { it.copy(breathAudible = audible) }
+    }
+
+    fun microphoneFailed(message: String) {
+        _state.update { it.copy(listening = false, microphoneError = message) }
+    }
+
+    /** Ends the session and scores it. A rejection replaces nothing. */
+    fun stopBreathing(nowMs: Long) {
+        val collected = hops.toList()
+        hops.clear()
+        val result = if (collected.isEmpty()) {
+            null
+        } else {
+            AudioBreathingEstimator.estimate(collected, nowMs.toDouble())
+        }
+        _state.update { current ->
+            current.copy(
+                breathingStartedAtMs = null,
+                listening = false,
+                breathingEstimate = result as? AudioBreathingResult.Measured
+                    ?: current.breathingEstimate,
+                breathingRejection = (result as? AudioBreathingResult.Rejected)?.reason,
+            )
+        }
+    }
+
+    fun audioGuidance(reason: AudioBreathingRejectionReason): String = when (reason) {
+        AudioBreathingRejectionReason.TOO_SHORT ->
+            "Listening needs about twenty seconds of breathing to say anything."
+
+        AudioBreathingRejectionReason.NOT_AUDIBLE ->
+            "Too quiet to hear. Try holding the phone a little closer."
+
+        AudioBreathingRejectionReason.TOO_NOISY ->
+            "There was too much background sound to pick out breathing."
+
+        AudioBreathingRejectionReason.NO_PERIODICITY -> "No steady rhythm came through."
+
+        AudioBreathingRejectionReason.UNSTABLE ->
+            "The rhythm kept changing, so no single rate would be honest."
+
+        AudioBreathingRejectionReason.OUT_OF_RANGE ->
+            "The result was outside a plausible range, so it was discarded."
     }
 
     fun guidance(reason: PulseRejectionReason): String = when (reason) {

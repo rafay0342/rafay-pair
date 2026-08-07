@@ -12,6 +12,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  estimateAudioBreathing,
+  extractAudioHops,
+} from "../audioBreathingEngine.js";
 import { estimateBreathing } from "../breathingEngine.js";
 import { estimateCalories } from "../calorieEngine.js";
 import { estimatePulse } from "../pulseEngine.js";
@@ -20,7 +24,11 @@ import type {
   CalorieEstimateInput,
   PulseSample,
 } from "../types.js";
-import { synthesiseBreathing, synthesisePulse } from "./synth.js";
+import {
+  synthesiseBreathAudio,
+  synthesiseBreathing,
+  synthesisePulse,
+} from "./synth.js";
 
 const MEASURED_AT_MS = 1_786_000_000_000;
 
@@ -228,6 +236,93 @@ const calorieCases: readonly {
   },
 ];
 
+/**
+ * Microphone cases. Two short ones carry raw PCM so the feature extractor itself
+ * is under contract; the longer ones carry only features, because a full session
+ * of PCM would be tens of megabytes of vector for no extra coverage.
+ */
+const audioFrameCases: readonly {
+  name: string;
+  note: string;
+  samples: number[];
+}[] = [
+  {
+    name: "steady-breathing",
+    note: "Two seconds of audible breathing; pins the band-pass and hop boundaries.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 12,
+      durationMs: 2_000,
+      seed: 41,
+    }),
+  },
+  {
+    name: "clipped-input",
+    note: "A clipped recording; every hop must fail the usability gate.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 12,
+      durationMs: 2_000,
+      clipping: true,
+      seed: 42,
+    }),
+  },
+];
+
+const audioSessionCases: readonly {
+  name: string;
+  note: string;
+  samples: number[];
+}[] = [
+  {
+    name: "calm-11-breaths",
+    note: "A settled session at a slow rate.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 11,
+      durationMs: 60_000,
+      seed: 51,
+    }),
+  },
+  {
+    name: "elevated-18-breaths",
+    note: "Faster breathing after exertion.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 18,
+      durationMs: 55_000,
+      seed: 52,
+    }),
+  },
+  {
+    name: "silent-room",
+    note: "Nothing audible; the session must be refused, not guessed at.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 12,
+      durationMs: 45_000,
+      breathLevel: 0.0002,
+      noiseLevel: 0.0001,
+      seed: 53,
+    }),
+  },
+  {
+    name: "voiced-speech-intrusion",
+    note: "Sustained voiced speech; too periodic to be breath, and gated out.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 12,
+      durationMs: 45_000,
+      breathLevel: 0.004,
+      speechLevel: 0.08,
+      seed: 54,
+    }),
+  },
+  {
+    name: "session-too-short",
+    note: "Under the twenty-second minimum.",
+    samples: synthesiseBreathAudio({
+      breathsPerMinute: 12,
+      durationMs: 12_000,
+      seed: 55,
+    }),
+  },
+];
+
 const goldenRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../../../tests/golden",
@@ -307,5 +402,70 @@ await writeFile(
     2,
   )}\n`,
 );
+
+await mkdir(path.join(goldenRoot, "breathing-audio", "frames"), {
+  recursive: true,
+});
+
+for (const testCase of audioFrameCases) {
+  // Quantize first, then score the quantized signal: the committed PCM is the
+  // contract, so the expectation must be what a reader of that file computes,
+  // not what the synthesiser's unrounded floats happened to produce.
+  const pcm = testCase.samples.map((value) => Math.round(value * 32_767));
+  const hops = extractAudioHops(
+    pcm.map((value) => value / 32_767),
+    0,
+  );
+  await writeFile(
+    path.join(goldenRoot, "breathing-audio", "frames", `${testCase.name}.json`),
+    `${JSON.stringify(
+      {
+        ...header,
+        name: testCase.name,
+        note: testCase.note,
+        sampleRateHz: 16_000,
+        // Stored as integers in a 16-bit range, which is what a device
+        // actually delivers and keeps the vector a reasonable size.
+        pcm,
+        expectedHops: hops.map((hop) => [
+          hop.timestampMs,
+          hop.rms,
+          hop.zeroCrossingRate,
+          hop.peak,
+        ]),
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
+for (const testCase of audioSessionCases) {
+  const hops = extractAudioHops(
+    testCase.samples.map((value) => Math.round(value * 32_767) / 32_767),
+    0,
+  );
+  const expected = estimateAudioBreathing(hops, MEASURED_AT_MS);
+  await writeFile(
+    path.join(goldenRoot, "breathing-audio", `${testCase.name}.json`),
+    `${JSON.stringify(
+      {
+        ...header,
+        name: testCase.name,
+        note: testCase.note,
+        measuredAtMs: MEASURED_AT_MS,
+        hops: hops.map((hop) => [
+          hop.timestampMs,
+          hop.rms,
+          hop.zeroCrossingRate,
+          hop.peak,
+        ]),
+        expected,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
 
 process.stdout.write("physiology golden vectors written\n");

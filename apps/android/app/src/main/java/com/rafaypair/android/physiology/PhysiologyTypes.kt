@@ -185,6 +185,62 @@ data class BreathingPhaseState(
     val remainingMs: Double,
 )
 
+/**
+ * One hop of microphone-derived features.
+ *
+ * This type deliberately carries no audio. It is the boundary the retention rule
+ * is enforced at: three scalars at 30 Hz, from which no intelligible content is
+ * reconstructible.
+ */
+data class AudioHopFeature(
+    val timestampMs: Double,
+    /** Root-mean-square energy of the band-passed hop. */
+    val rms: Double,
+    val zeroCrossingRate: Double,
+    /** Peak absolute amplitude before filtering, used to detect clipping. */
+    val peak: Double,
+)
+
+enum class AudioBreathingRejectionReason(val wireName: String) {
+    TOO_SHORT("tooShort"),
+    NOT_AUDIBLE("notAudible"),
+    TOO_NOISY("tooNoisy"),
+    NO_PERIODICITY("noPeriodicity"),
+    UNSTABLE("unstable"),
+    OUT_OF_RANGE("outOfRange"),
+}
+
+sealed interface AudioBreathingResult {
+    val statusName: String
+    val quality: SignalQuality
+    val hopCount: Int
+    val durationMs: Double
+
+    data class Measured(
+        val breathsPerMinute: Double,
+        override val durationMs: Double,
+        override val hopCount: Int,
+        val effectiveSampleRateHz: Double,
+        override val quality: SignalQuality,
+        val confidence: Double,
+        val confidenceBand: ConfidenceBand,
+        val measuredAtMs: Double,
+    ) : AudioBreathingResult {
+        override val statusName = "measured"
+        val source = "phone_microphone"
+        val kind = "app_estimated"
+    }
+
+    data class Rejected(
+        val reason: AudioBreathingRejectionReason,
+        override val durationMs: Double,
+        override val hopCount: Int,
+        override val quality: SignalQuality,
+    ) : AudioBreathingResult {
+        override val statusName = "rejected"
+    }
+}
+
 enum class CalorieActivity(val wireName: String) {
     REST("rest"),
     GUIDED_BREATHING("guidedBreathing"),
@@ -244,7 +300,34 @@ object PhysiologyTuning {
     const val QUALITY_FAIR_SCORE = 0.5
     const val CONFIDENCE_HIGH = 0.7
     const val CONFIDENCE_MODERATE = 0.45
+    /** One physical event per signal cycle — a heartbeat, a chest rise. */
     const val SUBHARMONIC_RATIO = 0.85
+
+    /**
+     * Two energy bursts per physical cycle — breath sound, loud on the inhale
+     * and again on the exhale.
+     */
+    const val SUBHARMONIC_MARGIN = 0.02
+
+    const val AUDIO_SAMPLE_RATE_HZ = 16_000.0
+    const val AUDIO_HIGH_PASS_HZ = 200.0
+    const val AUDIO_LOW_PASS_HZ = 2_000.0
+    const val AUDIO_HOP_SAMPLES = 533
+
+    const val AUDIO_RMS_FLOOR = 0.0015
+    const val AUDIO_PEAK_CLIP = 0.98
+    const val AUDIO_ZCR_MIN = 0.02
+    const val AUDIO_ZCR_MAX = 0.45
+
+    const val MIC_MOTION_SCALE = 0.05
+    const val MIC_CONFIDENCE_FULL_DURATION_MS = 45_000.0
+    const val MIC_MIN_DURATION_MS = 20_000.0
+
+    /** Lower than the camera estimate: calm breathing legitimately has quiet gaps. */
+    const val MIC_MIN_COVERAGE = 0.6
+    const val MIC_MIN_PERIODICITY = 0.4
+    const val MIC_MAX_MOTION = 0.6
+    const val MIC_MIN_STABILITY = 0.3
 
     const val FINGER_MIN_RED = 60.0
     const val FINGER_MAX_GREEN = 190.0
