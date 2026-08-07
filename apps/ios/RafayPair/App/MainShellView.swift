@@ -68,6 +68,11 @@ struct MainShellView: View {
             .tabItem { Label("Move", systemImage: "figure.strengthtraining.functional") }
 
             NavigationStack {
+                VitalsView()
+            }
+            .tabItem { Label("Vitals", systemImage: "heart.text.square.fill") }
+
+            NavigationStack {
                 SettingsView(
                     user: user,
                     sessionStore: sessionStore,

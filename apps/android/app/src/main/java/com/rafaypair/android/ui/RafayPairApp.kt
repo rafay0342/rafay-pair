@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inbox
@@ -123,6 +124,7 @@ import com.rafaypair.android.domain.model.PairStatus
 import com.rafaypair.android.domain.model.RealtimeState
 import com.rafaypair.android.domain.model.SessionState
 import com.rafaypair.android.domain.model.User
+import com.rafaypair.android.ui.vitals.VitalsScreen
 import com.rafaypair.android.ui.workout.WorkoutScreen
 import com.rafaypair.android.ui.theme.Coral500
 import com.rafaypair.android.ui.theme.Mint400
@@ -374,6 +376,7 @@ private fun SignedInScreen(
                 when (tab) {
                     AppTab.HOME -> HomeScreen(user, state, viewModel, { confirmDisconnect = true })
                     AppTab.MOVE -> WorkoutScreen()
+                    AppTab.VITALS -> VitalsScreen()
                     AppTab.CARE -> CareScreen(state, viewModel)
                     AppTab.CONSENT -> ConsentScreen(state, viewModel)
                     AppTab.ACCOUNT -> AccountScreen(user, state, viewModel)
@@ -405,6 +408,7 @@ private fun AppNavigationBar(selected: AppTab, onSelect: (AppTab) -> Unit) {
     NavigationBar(modifier = Modifier.navigationBarsPadding()) {
         NavigationItem(AppTab.HOME, "Home", Icons.Default.Home, selected, onSelect)
         NavigationItem(AppTab.MOVE, "Move", Icons.AutoMirrored.Filled.DirectionsRun, selected, onSelect)
+        NavigationItem(AppTab.VITALS, "Vitals", Icons.Default.MonitorHeart, selected, onSelect)
         NavigationItem(AppTab.CARE, "Care", Icons.Default.Favorite, selected, onSelect)
         NavigationItem(AppTab.CONSENT, "Consent", Icons.Default.Security, selected, onSelect)
         NavigationItem(AppTab.ACCOUNT, "Account", Icons.Default.AccountCircle, selected, onSelect)

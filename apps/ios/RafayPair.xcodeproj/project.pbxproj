@@ -38,6 +38,7 @@
 		63C5D35F0D8E164B954BD375 /* NotificationStateVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30705699D60ACAF7261AC5F /* NotificationStateVault.swift */; };
 		6A4F7F5B026ACDCF69C4463D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1005EF55FF9B367088683D5 /* HomeView.swift */; };
 		6BE7F11609BB34063EF12463 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AB11B554236F3CEEAE1451 /* APIClient.swift */; };
+		7002FDAFAA7A18B15BAB38BE /* PulseCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E0247EB2108455743A73B2 /* PulseCaptureSession.swift */; };
 		7914D5DA36AC8ABE3E24C1D4 /* golden in Resources */ = {isa = PBXBuildFile; fileRef = 7A86979FF37B4FEAB688A1A5 /* golden */; };
 		7C3C0AFCB1B837B4E8A6520D /* PhysiologyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */; };
 		7DD74683B3D616469DC3FAFE /* ConsentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6344CE5FDBE98BE852796A0A /* ConsentStore.swift */; };
@@ -53,11 +54,13 @@
 		AD1DC6C183EAE199B4C9EBBC /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B6438FB6837DC7D3F509BA /* SessionStore.swift */; };
 		AD2A91474E90C62B0475631A /* PoseTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B06D5AE6ABFEBC41434048 /* PoseTypes.swift */; };
 		BE480828D5F5AC3097305F30 /* PushApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8965FC760C90D3DE43A8BAAF /* PushApplicationDelegate.swift */; };
+		C8569745F3013E2F0D6155E3 /* VitalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC5FE959CD5FDC087C02A40 /* VitalsView.swift */; };
 		D5E5E231B1B341EE3C157C6E /* AppAttestRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 260AEBF56186F8217C385B88 /* AppAttestRepository.swift */; };
 		E0AFE798D4FB8096AEBECBE6 /* PushNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81E50AE1287A136AC71A880 /* PushNotificationService.swift */; };
 		E56395637DB0AAF9F08A20C4 /* RafayPairUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B85603F030F8602D15FEADA /* RafayPairUITests.swift */; };
 		EA54439E33FCB200FDF10307 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B7F5257CF8F8E5FD37B937 /* AuthenticationView.swift */; };
 		F759FD75715DD601D90E6F63 /* RealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1837BF6C8FA93BCC8927C12 /* RealtimeClient.swift */; };
+		FA6EB781C0E40C6759994B21 /* VitalsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117E83B0F63890B736C3CADC /* VitalsStore.swift */; };
 		FEEBC791F5277824F8A94ABB /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B37E00E377B64081E969F46 /* AppDependencies.swift */; };
 /* End PBXBuildFile section */
 
@@ -80,6 +83,7 @@
 
 /* Begin PBXFileReference section */
 		0C088111388D3F9993E3DDF3 /* PushNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationTests.swift; sourceTree = "<group>"; };
+		117E83B0F63890B736C3CADC /* VitalsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitalsStore.swift; sourceTree = "<group>"; };
 		11ABD5A0CF218E9F48B90AE7 /* RafayPair.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RafayPair.entitlements; sourceTree = "<group>"; };
 		1A1A41697E71974815CCF76E /* RafayPairUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RafayPairUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1EB86585AC475450E7745102 /* CareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareView.swift; sourceTree = "<group>"; };
@@ -117,9 +121,11 @@
 		9703A37EC9AE9EA3168DFC3F /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
 		9B28189925C20CC1B2167BE8 /* PhysiologyGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyGoldenTests.swift; sourceTree = "<group>"; };
 		A050E6F37F9822C2031FA3B0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A1E0247EB2108455743A73B2 /* PulseCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PulseCaptureSession.swift; sourceTree = "<group>"; };
 		A7356C53A5C94AFC5F2DE163 /* CareDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareDraft.swift; sourceTree = "<group>"; };
 		A81882F86E66CA73F11BC9EB /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
 		A81E50AE1287A136AC71A880 /* PushNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationService.swift; sourceTree = "<group>"; };
+		AAC5FE959CD5FDC087C02A40 /* VitalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitalsView.swift; sourceTree = "<group>"; };
 		AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyEngines.swift; sourceTree = "<group>"; };
 		B45A8C888FB1CD1D6B2F9DFD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B529A1E3ABDF0D84CCBB505B /* AppAttestKeyIDVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestKeyIDVault.swift; sourceTree = "<group>"; };
@@ -153,6 +159,7 @@
 				9A971FA09901EB6CA7C1113C /* Pairing */,
 				DDF4B0DF9BB0739470A914D4 /* Privacy */,
 				BFCFC3068ABC1CE386F1ED39 /* Settings */,
+				F4EF6B8CA4CB1431A9875513 /* Vitals */,
 				3443CA156AEA7D90970098B8 /* Workout */,
 			);
 			path = Features;
@@ -318,6 +325,7 @@
 			children = (
 				AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */,
 				F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */,
+				A1E0247EB2108455743A73B2 /* PulseCaptureSession.swift */,
 				7EF139D2493F873FE4749F93 /* SignalCore.swift */,
 			);
 			path = Physiology;
@@ -409,6 +417,15 @@
 			);
 			name = "Rafay-Pair-New";
 			path = ../..;
+			sourceTree = "<group>";
+		};
+		F4EF6B8CA4CB1431A9875513 /* Vitals */ = {
+			isa = PBXGroup;
+			children = (
+				117E83B0F63890B736C3CADC /* VitalsStore.swift */,
+				AAC5FE959CD5FDC087C02A40 /* VitalsView.swift */,
+			);
+			path = Vitals;
 			sourceTree = "<group>";
 		};
 		FA4E3B6927D2C8BDB2AA7EF2 /* Core */ = {
@@ -633,6 +650,7 @@
 				63A855FBB5D5FE9EF9C7B501 /* PoseGeometry.swift in Sources */,
 				AD2A91474E90C62B0475631A /* PoseTypes.swift in Sources */,
 				05FE444B3FD5AE235A4F3E73 /* PrivacyStore.swift in Sources */,
+				7002FDAFAA7A18B15BAB38BE /* PulseCaptureSession.swift in Sources */,
 				BE480828D5F5AC3097305F30 /* PushApplicationDelegate.swift in Sources */,
 				430550A368B322255506F810 /* PushNotificationCoordinator.swift in Sources */,
 				E0AFE798D4FB8096AEBECBE6 /* PushNotificationService.swift in Sources */,
@@ -645,6 +663,8 @@
 				3AC9575CBF869D75E318B976 /* SettingsView.swift in Sources */,
 				5EC3C8F499E8B73DD5A62638 /* SignalCore.swift in Sources */,
 				5331C5000B47166CD8D77373 /* TokenVault.swift in Sources */,
+				FA6EB781C0E40C6759994B21 /* VitalsStore.swift in Sources */,
+				C8569745F3013E2F0D6155E3 /* VitalsView.swift in Sources */,
 				579B1B45643C4CB96E4A5521 /* WorkoutStore.swift in Sources */,
 				4C82ECC03CDE0E62C47DC2FD /* WorkoutView.swift in Sources */,
 			);
