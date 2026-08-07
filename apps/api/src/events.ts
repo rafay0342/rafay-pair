@@ -14,8 +14,9 @@ export async function appendRealtimeOutboxEvent(
       | "care.request.responded"
       | "privacy.paused"
       | "privacy.resumed"
-      | "pair.disconnected";
-    aggregateType: "pair" | "care_request" | "privacy";
+      | "pair.disconnected"
+      | "pulse.snapshot.shared";
+    aggregateType: "pair" | "care_request" | "privacy" | "pulse";
     aggregateId: string;
     pairId: string;
     actorUserId: string;

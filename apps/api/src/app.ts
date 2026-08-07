@@ -38,6 +38,7 @@ import { registerConsentRoutes } from "./routes/consent-routes.js";
 import { registerNotificationDeviceRoutes } from "./routes/notification-device-routes.js";
 import { registerPairRoutes } from "./routes/pair-routes.js";
 import { registerPrivacyRoutes } from "./routes/privacy-routes.js";
+import { registerPulseRoutes } from "./routes/pulse-routes.js";
 import { registerRealtimeRoutes } from "./routes/realtime-routes.js";
 import { registerIosIntegrityRoutes } from "./routes/ios-integrity-routes.js";
 
@@ -254,6 +255,7 @@ export async function buildApi(
   await registerPairRoutes(app);
   await registerConsentRoutes(app);
   await registerCareRoutes(app);
+  await registerPulseRoutes(app);
   await registerPrivacyRoutes(app);
   await registerNotificationDeviceRoutes(app);
   await registerAndroidIntegrityRoutes(app);

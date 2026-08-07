@@ -173,6 +173,47 @@ export const careRequestListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 
+/**
+ * The shared form of a phone-camera pulse estimate.
+ *
+ * Only the derived summary crosses the wire — never the sample series that
+ * produced it. `source` and `kind` are literals rather than free text so that no
+ * payload can imply a measured-grade or medical reading, and there is
+ * deliberately no blood-pressure shape anywhere in these contracts.
+ */
+export const pulseSnapshotSchema = z.object({
+  ownerUserId: z.string().uuid(),
+  bpm: z.number().min(42).max(210),
+  confidenceBand: z.enum(["low", "moderate", "high"]),
+  qualityBand: z.enum(["poor", "fair", "good"]),
+  source: z.literal("phone_camera_ppg"),
+  kind: z.literal("app_estimated"),
+  measuredAt: z.string().datetime(),
+  sharedAt: z.string().datetime(),
+  /**
+   * Computed server-side so both members agree on whether the reading may still
+   * be presented as current. Freshness is a property of the reading, not of the
+   * screen showing it.
+   */
+  fresh: z.boolean(),
+  ageMs: z.number().int().min(0),
+});
+
+export const sharePulseSnapshotSchema = z.object({
+  bpm: z.number().min(42).max(210),
+  confidenceBand: z.enum(["low", "moderate", "high"]),
+  qualityBand: z.enum(["poor", "fair", "good"]),
+  measuredAt: z.string().datetime(),
+});
+
+export const pulseSnapshotResponseSchema = z.object({
+  snapshot: pulseSnapshotSchema,
+});
+
+export const partnerPulseSnapshotResponseSchema = z.object({
+  snapshot: pulseSnapshotSchema.nullable(),
+});
+
 export const privacyStateSchema = z.object({
   pairId: z.string().uuid(),
   userId: z.string().uuid(),
@@ -228,6 +269,7 @@ export const realtimeEventEnvelopeSchema = z.object({
     "privacy.paused",
     "privacy.resumed",
     "pair.disconnected",
+    "pulse.snapshot.shared",
   ]),
   occurredAt: z.string().datetime(),
   pairId: z.string().uuid(),

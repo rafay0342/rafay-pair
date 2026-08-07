@@ -1082,6 +1082,140 @@ describe("Milestone 1 API", () => {
     }
   });
 
+  it("shares a pulse snapshot only under consent, and never a stale or fabricated one", async () => {
+    const owner = await registerNative(
+      "pulse-owner@example.test",
+      "Pulse Owner",
+    );
+    const partner = await registerNative(
+      "pulse-partner@example.test",
+      "Pulse Partner",
+    );
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/pairs/current",
+      headers: nativeHeaders(owner.accessToken),
+    });
+    const pair = created.json().pair as { id: string; joinCode: string };
+    await app.inject({
+      method: "POST",
+      url: "/v1/pairs/join",
+      headers: nativeHeaders(partner.accessToken),
+      payload: { code: pair.joinCode },
+    });
+
+    const snapshot = {
+      bpm: 72.4,
+      confidenceBand: "high",
+      qualityBand: "good",
+      measuredAt: new Date().toISOString(),
+    };
+
+    // Consent defaults to denied, so sharing is refused before it is granted.
+    const beforeConsent = await app.inject({
+      method: "POST",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: snapshot,
+    });
+    expect(beforeConsent.statusCode).toBe(403);
+    expect(beforeConsent.json().code).toBe("CONSENT_DENIED");
+
+    await app.inject({
+      method: "PUT",
+      url: "/v1/consents",
+      headers: nativeHeaders(owner.accessToken),
+      payload: { grants: [{ capability: "pulse_snapshots", granted: true }] },
+    });
+
+    const shared = await app.inject({
+      method: "POST",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: snapshot,
+    });
+    expect(shared.statusCode).toBe(200);
+    const shareBody = shared.json().snapshot as Record<string, unknown>;
+    expect(shareBody.bpm).toBe(72.4);
+    // Provenance is fixed by the schema; nothing can promote an estimate.
+    expect(shareBody.source).toBe("phone_camera_ppg");
+    expect(shareBody.kind).toBe("app_estimated");
+    expect(shareBody.fresh).toBe(true);
+
+    const partnerView = await app.inject({
+      method: "GET",
+      url: "/v1/pulse-snapshots/partner",
+      headers: nativeHeaders(partner.accessToken),
+    });
+    expect(partnerView.statusCode).toBe(200);
+    expect((partnerView.json().snapshot as Record<string, unknown>).bpm).toBe(
+      72.4,
+    );
+
+    // A reading older than the freshness window may not be shared at all:
+    // sharing it would present an expired value as news.
+    const stale = await app.inject({
+      method: "POST",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: {
+        ...snapshot,
+        measuredAt: new Date(Date.now() - 400_000).toISOString(),
+      },
+    });
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().code).toBe("PULSE_STALE");
+
+    // A future timestamp would look permanently fresh, so it is refused.
+    const future = await app.inject({
+      method: "POST",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: {
+        ...snapshot,
+        measuredAt: new Date(Date.now() + 600_000).toISOString(),
+      },
+    });
+    expect(future.statusCode).toBe(400);
+
+    // Out-of-range rates are rejected by the contract before reaching storage.
+    const implausible = await app.inject({
+      method: "POST",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+      payload: { ...snapshot, bpm: 12 },
+    });
+    expect(implausible.statusCode).toBe(400);
+
+    // Revoking the grant blocks the partner immediately.
+    await app.inject({
+      method: "PUT",
+      url: "/v1/consents",
+      headers: nativeHeaders(owner.accessToken),
+      payload: { grants: [{ capability: "pulse_snapshots", granted: false }] },
+    });
+    const afterRevoke = await app.inject({
+      method: "GET",
+      url: "/v1/pulse-snapshots/partner",
+      headers: nativeHeaders(partner.accessToken),
+    });
+    expect(afterRevoke.statusCode).toBe(403);
+    expect(afterRevoke.json().code).toBe("CONSENT_DENIED");
+
+    // The owner can withdraw the stored reading outright.
+    const withdrawn = await app.inject({
+      method: "DELETE",
+      url: "/v1/pulse-snapshots",
+      headers: nativeHeaders(owner.accessToken),
+    });
+    expect(withdrawn.statusCode).toBe(204);
+    const remaining = await pool.query(
+      "SELECT count(*)::int AS count FROM pulse_snapshots WHERE pair_id = $1",
+      [pair.id],
+    );
+    expect(remaining.rows[0]?.count).toBe(0);
+  });
+
   it("keeps tickets out of URLs, fences replay by worker authorization and consent, and closes rotated sessions", async () => {
     const sender = await registerNative(
       "realtime-sender@example.test",
