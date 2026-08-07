@@ -18,7 +18,7 @@
     "golden": "tsx src/tools/generate-golden.ts"
   },
   "devDependencies": {
-    "@types/node": "24.10.1",
+    "@types/node": "26.1.2",
     "tsx": "4.23.9",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
