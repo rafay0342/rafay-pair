@@ -217,3 +217,105 @@ internal fun String.fromApiStatus(): String = when (this) {
     "active" -> "ACTIVE"
     else -> uppercase()
 }
+
+// MARK: - Together mode
+
+/**
+ * Master specification §10: each phone detects its own user and exchanges only
+ * derived state. There is no field here for a frame, a landmark, or an audio
+ * sample, so none can be transmitted.
+ */
+@Serializable
+data class TogetherParticipantStateDto(
+    val userId: String,
+    val repetitions: Int,
+    val exercisePhase: String,
+    val setIndex: Int,
+    val elapsedMs: Int,
+    val estimatedKcal: Double? = null,
+    val breathingState: String? = null,
+    val updatedAt: String,
+)
+
+@Serializable
+data class TogetherSessionDto(
+    val id: String,
+    val pairId: String,
+    val invitedByUserId: String,
+    val invitedUserId: String,
+    val activity: String,
+    val status: String,
+    val createdAt: String,
+    val acceptedAt: String? = null,
+    val endedAt: String? = null,
+    val expiresAt: String,
+    val participants: List<TogetherParticipantStateDto> = emptyList(),
+)
+
+@Serializable
+data class TogetherSessionResponseDto(val session: TogetherSessionDto? = null)
+
+@Serializable
+data class CreateTogetherSessionRequestDto(val activity: String)
+
+@Serializable
+data class RespondTogetherSessionRequestDto(val response: String)
+
+@Serializable
+data class PublishTogetherStateRequestDto(
+    val repetitions: Int,
+    val exercisePhase: String,
+    val setIndex: Int,
+    val elapsedMs: Int,
+    val estimatedKcal: Double? = null,
+    val breathingState: String? = null,
+)
+
+// MARK: - Rafay AI
+
+@Serializable
+data class AiMemoryDto(
+    val id: String,
+    val category: String,
+    val content: String,
+    /** `assistant` entries were proposed by the model rather than stated. */
+    val author: String,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class AiMemoryListResponseDto(
+    val memories: List<AiMemoryDto> = emptyList(),
+    val limit: Int,
+)
+
+@Serializable
+data class AiMemoryResponseDto(val memory: AiMemoryDto)
+
+@Serializable
+data class CreateAiMemoryRequestDto(val category: String, val content: String)
+
+@Serializable
+data class AiAllowedToolDto(
+    val name: String,
+    val title: String,
+    val mutating: Boolean,
+    val requiresConfirmation: Boolean,
+)
+
+@Serializable
+data class AiSessionDto(
+    val id: String,
+    val status: String,
+    val startedAt: String,
+    val expiresAt: String,
+    val endedAt: String? = null,
+    val identityAnnounced: Boolean,
+    /** Server-supplied so a client cannot quietly drop or reword it. */
+    val identityDisclosure: String,
+    val allowedTools: List<AiAllowedToolDto> = emptyList(),
+)
+
+@Serializable
+data class AiSessionResponseDto(val session: AiSessionDto? = null)

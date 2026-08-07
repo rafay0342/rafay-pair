@@ -12,6 +12,8 @@ struct RootView: View {
     @Bindable var connectivity: ConnectivityMonitor
     let notifications: PushNotificationCoordinator
     let appAttest: AppAttestCoordinator
+    let together: any TogetherRepository
+    let assistant: any AssistantRepository
     @State private var preparedAccountID: UUID?
     @State private var accountPreparationComplete = false
 
@@ -34,7 +36,9 @@ struct RootView: View {
                         realtimeStore: realtimeStore,
                         connectivity: connectivity,
                         notifications: notifications,
-                        appAttest: appAttest
+                        appAttest: appAttest,
+                        together: together,
+                        assistant: assistant
                     )
                 } else {
                     LaunchView()

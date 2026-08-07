@@ -1,5 +1,6 @@
 import { AppShell } from "./components/AppShell";
 import { PageSpinner } from "./components/Feedback";
+import { AssistantPage } from "./pages/AssistantPage";
 import { AuthPage } from "./pages/AuthPage";
 import { CapabilitiesPage } from "./pages/CapabilitiesPage";
 import { CarePage } from "./pages/CarePage";
@@ -9,6 +10,7 @@ import { MovePage } from "./pages/MovePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PairPage } from "./pages/PairPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { TogetherPage } from "./pages/TogetherPage";
 import { VitalsPage } from "./pages/VitalsPage";
 import { Navigate, usePathname } from "./routing/Router";
 import { useAuth } from "./state/AuthContext";
@@ -52,6 +54,10 @@ function route(pathname: string): React.JSX.Element {
       return <MovePage />;
     case "/vitals":
       return <VitalsPage />;
+    case "/together":
+      return <TogetherPage />;
+    case "/assistant":
+      return <AssistantPage />;
     case "/pair":
       return <PairPage />;
     case "/consent":

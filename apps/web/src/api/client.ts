@@ -1,4 +1,6 @@
 import {
+  aiMemoryListResponseSchema,
+  aiMemoryResponseSchema,
   authResponseSchema,
   careRequestListResponseSchema,
   careRequestResponseSchema,
@@ -8,11 +10,15 @@ import {
   problemDetailsSchema,
   realtimeTicketResponseSchema,
   realtimeWebSocketProtocols,
+  togetherSessionResponseSchema,
   userSchema,
 } from "@rafay-pair/api-contracts";
 
 import { runtimeConfig } from "../config";
 import type {
+  AiMemory,
+  AiMemoryCategory,
+  AiMemoryList,
   AuthResult,
   CareKind,
   CareRequest,
@@ -23,6 +29,9 @@ import type {
   Pair,
   PrivacyState,
   RealtimeTicket,
+  TogetherActivity,
+  TogetherSession,
+  TogetherStateInput,
   User,
 } from "../domain/types";
 import { ApiError } from "./ApiError";
@@ -309,6 +318,106 @@ export class ApiClient {
       ...(signal ? { signal } : {}),
     });
     return parseContract(privacyStateResponseSchema, response).privacy;
+  }
+
+  // MARK: - Together mode
+
+  public async currentTogetherSession(
+    signal?: AbortSignal,
+  ): Promise<TogetherSession | null> {
+    const response = await this.request(apiPaths.together.current, {
+      ...(signal ? { signal } : {}),
+      retryAfterRefresh: true,
+    });
+    return parseContract(togetherSessionResponseSchema, response).session;
+  }
+
+  public async inviteTogetherSession(
+    activity: TogetherActivity,
+  ): Promise<TogetherSession | null> {
+    const response = await this.request(apiPaths.together.create, {
+      method: "POST",
+      body: { activity },
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(togetherSessionResponseSchema, response).session;
+  }
+
+  public async respondToTogetherSession(
+    id: string,
+    response: "accepted" | "declined",
+  ): Promise<TogetherSession | null> {
+    const body = await this.request(apiPaths.together.respond(id), {
+      method: "POST",
+      body: { response },
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(togetherSessionResponseSchema, body).session;
+  }
+
+  /** Publishes derived state only; there is no field here for media. */
+  public async publishTogetherState(
+    id: string,
+    state: TogetherStateInput,
+  ): Promise<TogetherSession | null> {
+    const body = await this.request(apiPaths.together.state(id), {
+      method: "PUT",
+      body: state,
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(togetherSessionResponseSchema, body).session;
+  }
+
+  public async endTogetherSession(id: string): Promise<TogetherSession | null> {
+    const body = await this.request(apiPaths.together.end(id), {
+      method: "POST",
+      body: {},
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(togetherSessionResponseSchema, body).session;
+  }
+
+  // MARK: - Assistant memory
+
+  public async aiMemories(signal?: AbortSignal): Promise<AiMemoryList> {
+    const response = await this.request(apiPaths.ai.memories, {
+      ...(signal ? { signal } : {}),
+      retryAfterRefresh: true,
+    });
+    return parseContract(aiMemoryListResponseSchema, response);
+  }
+
+  public async addAiMemory(input: {
+    category: AiMemoryCategory;
+    content: string;
+  }): Promise<AiMemory> {
+    const response = await this.request(apiPaths.ai.memories, {
+      method: "POST",
+      body: input,
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(aiMemoryResponseSchema, response).memory;
+  }
+
+  public async deleteAiMemory(id: string): Promise<void> {
+    await this.request(apiPaths.ai.memory(id), {
+      method: "DELETE",
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+  }
+
+  public async forgetAllAiMemories(): Promise<void> {
+    await this.request(apiPaths.ai.memories, {
+      method: "DELETE",
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
   }
 
   public async realtimeTicket(lastEventId?: string): Promise<RealtimeTicket> {

@@ -15,6 +15,8 @@ struct MainShellView: View {
     @Bindable var connectivity: ConnectivityMonitor
     let notifications: PushNotificationCoordinator
     let appAttest: AppAttestCoordinator
+    let together: any TogetherRepository
+    let assistant: any AssistantRepository
 
     private var activePairID: UUID? {
         pairStore.pair?.status == .active ? pairStore.pair?.id : nil
@@ -63,7 +65,7 @@ struct MainShellView: View {
             .tabItem { Label("Sharing", systemImage: "hand.raised.fill") }
 
             NavigationStack {
-                WorkoutView()
+                WorkoutView(together: together)
             }
             .tabItem { Label("Move", systemImage: "figure.strengthtraining.functional") }
 
@@ -71,6 +73,17 @@ struct MainShellView: View {
                 VitalsView()
             }
             .tabItem { Label("Vitals", systemImage: "heart.text.square.fill") }
+
+            NavigationStack {
+                TogetherView(
+                    user: user,
+                    pairStore: pairStore,
+                    privacyStore: privacyStore,
+                    together: together,
+                    assistant: assistant
+                )
+            }
+            .tabItem { Label("Together", systemImage: "person.2.fill") }
 
             NavigationStack {
                 SettingsView(

@@ -7,6 +7,8 @@ struct AppDependencies: Sendable {
     let pair: any PairRepository
     let consent: any ConsentRepository
     let care: any CareRepository
+    let together: any TogetherRepository
+    let assistant: any AssistantRepository
     let privacy: any PrivacyRepository
     let realtime: RealtimeClient
     let notifications: PushNotificationCoordinator
@@ -41,6 +43,8 @@ struct AppDependencies: Sendable {
             pair: RemotePairRepository(api: api),
             consent: RemoteConsentRepository(api: api),
             care: RemoteCareRepository(api: api),
+            together: RemoteTogetherRepository(api: api),
+            assistant: RemoteAssistantRepository(api: api),
             privacy: RemotePrivacyRepository(api: api),
             realtime: RealtimeClient(api: api),
             notifications: PushNotificationCoordinator(

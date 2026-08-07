@@ -584,6 +584,16 @@ export type IosIntegrityAction = z.infer<typeof iosIntegrityActionSchema>;
 export type AppAttestMode = z.infer<typeof appAttestModeSchema>;
 export type RealtimeEventEnvelope = z.infer<typeof realtimeEventEnvelopeSchema>;
 export type ProblemDetails = z.infer<typeof problemDetailsSchema>;
+export type TogetherSession = z.infer<typeof togetherSessionSchema>;
+export type TogetherActivity = z.infer<typeof togetherActivitySchema>;
+export type TogetherParticipantState = z.infer<
+  typeof togetherParticipantStateSchema
+>;
+export type PublishTogetherState = z.infer<typeof publishTogetherStateSchema>;
+export type AiMemory = z.infer<typeof aiMemorySchema>;
+export type AiMemoryCategory = z.infer<typeof aiMemoryCategorySchema>;
+export type AiMemoryList = z.infer<typeof aiMemoryListResponseSchema>;
+export type AiSession = z.infer<typeof aiSessionSchema>;
 
 export const consentCapabilities: readonly ConsentCapability[] =
   consentCapabilitySchema.options;

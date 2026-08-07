@@ -207,3 +207,142 @@ actor RemotePrivacyRepository: PrivacyRepository {
         return response.privacy
     }
 }
+
+protocol TogetherRepository: Sendable {
+    func current() async throws -> TogetherSession?
+    func invite(activity: TogetherActivity) async throws -> TogetherSession?
+    func respond(id: UUID, accepted: Bool) async throws -> TogetherSession?
+    func publish(id: UUID, state: PublishTogetherStateRequest) async throws -> TogetherSession?
+    func end(id: UUID) async throws -> TogetherSession?
+}
+
+actor RemoteTogetherRepository: TogetherRepository {
+    private let api: APIClient
+
+    init(api: APIClient) {
+        self.api = api
+    }
+
+    func current() async throws -> TogetherSession? {
+        do {
+            let response: TogetherSessionResponse = try await api.authenticated(
+                "/v1/together-sessions/current"
+            )
+            return response.session
+        } catch APIError.server(let problem) where problem.status == 404 {
+            return nil
+        }
+    }
+
+    func invite(activity: TogetherActivity) async throws -> TogetherSession? {
+        let response: TogetherSessionResponse = try await api.authenticated(
+            "/v1/together-sessions",
+            method: .post,
+            body: CreateTogetherSessionRequest(activity: activity)
+        )
+        return response.session
+    }
+
+    func respond(id: UUID, accepted: Bool) async throws -> TogetherSession? {
+        let response: TogetherSessionResponse = try await api.authenticated(
+            "/v1/together-sessions/\(id.uuidString.lowercased())/respond",
+            method: .post,
+            body: RespondTogetherSessionRequest(response: accepted ? "accepted" : "declined")
+        )
+        return response.session
+    }
+
+    func publish(
+        id: UUID,
+        state: PublishTogetherStateRequest
+    ) async throws -> TogetherSession? {
+        let response: TogetherSessionResponse = try await api.authenticated(
+            "/v1/together-sessions/\(id.uuidString.lowercased())/state",
+            method: .put,
+            body: state
+        )
+        return response.session
+    }
+
+    func end(id: UUID) async throws -> TogetherSession? {
+        let response: TogetherSessionResponse = try await api.authenticated(
+            "/v1/together-sessions/\(id.uuidString.lowercased())/end",
+            method: .post
+        )
+        return response.session
+    }
+}
+
+protocol AssistantRepository: Sendable {
+    func memories() async throws -> AiMemoryListResponse
+    func addMemory(category: AiMemoryCategory, content: String) async throws -> AiMemory
+    func deleteMemory(id: UUID) async throws
+    func forgetAll() async throws
+    func currentSession() async throws -> AiSession?
+    func startSession() async throws -> AiSession?
+    func markIdentityAnnounced(id: UUID) async throws -> AiSession?
+    func endSession(id: UUID) async throws -> AiSession?
+}
+
+actor RemoteAssistantRepository: AssistantRepository {
+    private let api: APIClient
+
+    init(api: APIClient) {
+        self.api = api
+    }
+
+    func memories() async throws -> AiMemoryListResponse {
+        try await api.authenticated("/v1/ai/memories")
+    }
+
+    func addMemory(category: AiMemoryCategory, content: String) async throws -> AiMemory {
+        let response: AiMemoryResponse = try await api.authenticated(
+            "/v1/ai/memories",
+            method: .post,
+            body: CreateAiMemoryRequest(category: category, content: content)
+        )
+        return response.memory
+    }
+
+    func deleteMemory(id: UUID) async throws {
+        try await api.authenticatedVoid(
+            "/v1/ai/memories/\(id.uuidString.lowercased())",
+            method: .delete
+        )
+    }
+
+    func forgetAll() async throws {
+        try await api.authenticatedVoid("/v1/ai/memories", method: .delete)
+    }
+
+    func currentSession() async throws -> AiSession? {
+        let response: AiSessionResponse = try await api.authenticated(
+            "/v1/ai/sessions/current"
+        )
+        return response.session
+    }
+
+    func startSession() async throws -> AiSession? {
+        let response: AiSessionResponse = try await api.authenticated(
+            "/v1/ai/sessions",
+            method: .post
+        )
+        return response.session
+    }
+
+    func markIdentityAnnounced(id: UUID) async throws -> AiSession? {
+        let response: AiSessionResponse = try await api.authenticated(
+            "/v1/ai/sessions/\(id.uuidString.lowercased())/identity-announced",
+            method: .post
+        )
+        return response.session
+    }
+
+    func endSession(id: UUID) async throws -> AiSession? {
+        let response: AiSessionResponse = try await api.authenticated(
+            "/v1/ai/sessions/\(id.uuidString.lowercased())/end",
+            method: .post
+        )
+        return response.session
+    }
+}

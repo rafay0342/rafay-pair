@@ -2512,3 +2512,49 @@ textarea::placeholder {
     transition: none;
   }
 }
+
+/* Together mode and assistant memory. */
+.together-participants {
+  list-style: none;
+  margin: 0.6rem 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.memory-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+  text-align: left;
+}
+
+.memory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.memory-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.memory-kind {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+/* An entry the model proposed is visually distinct from one the user stated,
+   because the difference matters when deciding whether to keep it. */
+.memory-author {
+  font-size: 0.75rem;
+  font-style: italic;
+  opacity: 0.7;
+}

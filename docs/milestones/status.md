@@ -80,6 +80,32 @@ The lighting gate is the substantive addition. Slow illumination drift produces 
 
 Not implemented, and the Web client says so. The measurement needs the rear lens with its torch lit and its exposure locked; browsers expose neither reliably, and without a lit fingertip the signal is not recoverable. The master specification anticipates exactly this: web pulse is separately qualified by device capability. Guided breathing, which needs no sensor, runs in the browser from the same deterministic schedule the phones use.
 
+## Gate 4 — Together mode and Rafay AI
+
+Status: server, authorization layer, and all three client surfaces implemented and validated locally on 2026-08-07. Not closed: the voice transport needs a provider account before an end-to-end voice session can be demonstrated, and closure inherits the same real-device evidence the earlier gates are waiting on.
+
+**Together mode** (master specification §10). Both phones detect their own user and exchange only derived state — repetition count, exercise phase, set index, elapsed time, estimated calories, breathing phase. That is enforced structurally rather than by policy: `together_participant_states` has no column, and `togetherParticipantStateSchema` no field, through which a frame, a landmark, or an audio sample could pass. A Kotlin unit test enumerates the declared properties of the transport type and fails if a new one is ever named for media.
+
+- One open session per pair, enforced by a partial unique index rather than by application logic, so two simultaneous invitations cannot both win.
+- Partner state is filtered against the _current_ grant at read time, not at write time. Revoking workout sharing therefore hides progress that is already stored, mid-session, without a cleanup job.
+- Ending a session deletes the state that was exchanged.
+- While a session is active the workout engines publish on a fixed two-second cadence rather than per frame — publishing per frame would put the pose sampling rate itself on the wire, which is a detail of what the camera saw. A final publish on session end settles the partner's screen on the real total.
+- The phase vocabulary contains no `ascending`, because the posture classifier does not distinguish it. Reporting one would be inventing a phase.
+
+**Rafay AI.** The server is the broker; the provider is only a media and language transport. Authorization is never delegated to the model.
+
+- `invokeTool` runs allowlist → schema → privacy re-check → execute, in that order, and every mutating tool requires `context.confirmed` — the assistant cannot confirm on its own behalf.
+- Tool invocations are recorded with `UNIQUE (session_id, call_id)`, so a replayed call id cannot execute twice.
+- The identity disclosure is supplied by the server, not composed by a client, so a client cannot quietly drop or reword it. It is announced at the start of every session.
+- Memory is per-account and never travels with the pair. Entries the model proposed are stored with `author = 'assistant'` and are marked as such in all three interfaces, so it is always clear which entries the user actually said.
+- Camera-derived numbers reach the model with their provenance attached, and the instructions require them to be spoken about as estimates rather than measured readings.
+
+**Provider.** `QwenRealtimeProvider` implements the documented realtime event protocol. Model and region are exact allowlists rather than free configuration — an arbitrary value there would turn deployment config into an unrestricted server-side egress target — and the endpoint is derived from validated parts instead of accepted whole. When nothing is configured, `UnavailableProvider` refuses to open rather than returning plausible audio; an unconfigured deployment that looks functional is the one failure mode a voice feature must not have.
+
+One fault was found by the module's own test and fixed rather than documented: the API key was reachable through `JSON.stringify(provider)`, because TypeScript's `private` is erased at runtime and leaves an enumerable own property. It is now a `#` field, which is invisible to serialization.
+
+**Surfaces.** Together mode and the memory controls are built natively on all three clients — SwiftUI (`Features/Together/TogetherView.swift`), Compose (`ui/together/TogetherScreen.kt`), and React (`pages/TogetherPage.tsx`, `pages/AssistantPage.tsx`). Voice sessions run on the phones, where the microphone state is visible for the whole session; the Web client says so and offers the memory controls, because a user is entitled to read and delete what is remembered about them in the same place they read anything else about their account.
+
 ## Build and device setup
 
 Three things previously listed as blockers are now handled in the repository rather than left to manual steps.

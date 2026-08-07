@@ -4,7 +4,13 @@ import SwiftUI
 /// Local camera workout. Runs entirely on this phone.
 struct WorkoutView: View {
     @State private var capture = PoseCaptureSession()
-    @State private var store = WorkoutStore()
+    @State private var store: WorkoutStore
+
+    /// The together repository is handed in so an accepted shared session
+    /// receives derived counts. Without one the screen simply runs locally.
+    init(together: (any TogetherRepository)? = nil) {
+        _store = State(initialValue: WorkoutStore(together: together))
+    }
 
     var body: some View {
         ScrollView {

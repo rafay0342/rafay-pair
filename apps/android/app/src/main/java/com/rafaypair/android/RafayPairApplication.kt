@@ -10,22 +10,26 @@ import com.rafaypair.android.data.local.PushRegistrationStore
 import com.rafaypair.android.data.network.ApiClient
 import com.rafaypair.android.data.network.DefaultRealtimeRepository
 import com.rafaypair.android.data.network.RefreshCoordinator
+import com.rafaypair.android.data.repository.DefaultAssistantRepository
 import com.rafaypair.android.data.repository.DefaultAuthRepository
 import com.rafaypair.android.data.repository.DefaultCareRepository
 import com.rafaypair.android.data.repository.DefaultConsentRepository
 import com.rafaypair.android.data.repository.DefaultPairRepository
 import com.rafaypair.android.data.repository.DefaultPrivacyRepository
+import com.rafaypair.android.data.repository.DefaultTogetherRepository
 import com.rafaypair.android.data.repository.NotificationDeviceRepository
 import com.rafaypair.android.data.repository.ReconnectSyncCoordinator
 import com.rafaypair.android.data.repository.SyncScheduler
 import com.rafaypair.android.domain.model.PairStatus
 import com.rafaypair.android.domain.model.SessionState
+import com.rafaypair.android.domain.repository.AssistantRepository
 import com.rafaypair.android.domain.repository.AuthRepository
 import com.rafaypair.android.domain.repository.CareRepository
 import com.rafaypair.android.domain.repository.ConsentRepository
 import com.rafaypair.android.domain.repository.PairRepository
 import com.rafaypair.android.domain.repository.PrivacyRepository
 import com.rafaypair.android.domain.repository.RealtimeRepository
+import com.rafaypair.android.domain.repository.TogetherRepository
 import com.rafaypair.android.domain.usecase.CareUseCases
 import com.rafaypair.android.domain.usecase.ConsentUseCases
 import com.rafaypair.android.domain.usecase.LoginUseCase
@@ -127,6 +131,8 @@ class AppContainer(application: Application, firebaseAvailable: Boolean) {
         consentRepository,
         privacyRepository,
     )
+    val togetherRepository: TogetherRepository = DefaultTogetherRepository(api)
+    val assistantRepository: AssistantRepository = DefaultAssistantRepository(api)
     val realtimeRepository: RealtimeRepository = DefaultRealtimeRepository(
         api,
         json,

@@ -1,4 +1,8 @@
 import type {
+  AiMemory as ContractAiMemory,
+  AiMemoryCategory as ContractAiMemoryCategory,
+  AiMemoryList as ContractAiMemoryList,
+  AiSession as ContractAiSession,
   AuthResponse,
   CareRequest as ContractCareRequest,
   CareRequestKind,
@@ -8,7 +12,10 @@ import type {
   Pair as ContractPair,
   PrivacyState as ContractPrivacyState,
   ProblemDetails,
+  PublishTogetherState,
   RealtimeEventEnvelope,
+  TogetherActivity as ContractTogetherActivity,
+  TogetherSession as ContractTogetherSession,
   User as ContractUser,
 } from "@rafay-pair/api-contracts";
 
@@ -41,6 +48,17 @@ export type RealtimeStatus =
   "idle" | "connecting" | "connected" | "recovering" | "offline";
 
 export type ApiProblem = Partial<ProblemDetails>;
+
+export type TogetherSession = ContractTogetherSession;
+export type TogetherActivity = ContractTogetherActivity;
+export type TogetherParticipant = TogetherSession["participants"][number];
+/** Derived state only. There is deliberately no media field here. */
+export type TogetherStateInput = PublishTogetherState;
+
+export type AiMemory = ContractAiMemory;
+export type AiMemoryCategory = ContractAiMemoryCategory;
+export type AiMemoryList = ContractAiMemoryList;
+export type AiSession = ContractAiSession;
 
 export interface OfflineCareDraft {
   readonly clientRequestId: string;

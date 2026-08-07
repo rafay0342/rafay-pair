@@ -241,6 +241,69 @@ class ApiClient(
         delete("/v1/notification-devices/$validated")
     }
 
+    // MARK: - Together mode
+
+    suspend fun currentTogetherSession(): TogetherSessionResponseDto = get(
+        "/v1/together-sessions/current",
+        TogetherSessionResponseDto.serializer(),
+    )
+
+    suspend fun inviteTogetherSession(activity: String): TogetherSessionResponseDto = post(
+        "/v1/together-sessions",
+        CreateTogetherSessionRequestDto(activity),
+        CreateTogetherSessionRequestDto.serializer(),
+        TogetherSessionResponseDto.serializer(),
+    )
+
+    suspend fun respondTogetherSession(
+        id: String,
+        response: String,
+    ): TogetherSessionResponseDto = post(
+        "/v1/together-sessions/${UUID.fromString(id)}/respond",
+        RespondTogetherSessionRequestDto(response),
+        RespondTogetherSessionRequestDto.serializer(),
+        TogetherSessionResponseDto.serializer(),
+    )
+
+    suspend fun publishTogetherState(
+        id: String,
+        state: PublishTogetherStateRequestDto,
+    ): TogetherSessionResponseDto = put(
+        "/v1/together-sessions/${UUID.fromString(id)}/state",
+        state,
+        PublishTogetherStateRequestDto.serializer(),
+        TogetherSessionResponseDto.serializer(),
+    )
+
+    suspend fun endTogetherSession(id: String): TogetherSessionResponseDto = post(
+        "/v1/together-sessions/${UUID.fromString(id)}/end",
+        EmptyRequestDto(),
+        EmptyRequestDto.serializer(),
+        TogetherSessionResponseDto.serializer(),
+    )
+
+    // MARK: - Rafay AI
+
+    suspend fun aiMemories(): AiMemoryListResponseDto = get(
+        "/v1/ai/memories",
+        AiMemoryListResponseDto.serializer(),
+    )
+
+    suspend fun addAiMemory(category: String, content: String): AiMemoryResponseDto = post(
+        "/v1/ai/memories",
+        CreateAiMemoryRequestDto(category, content),
+        CreateAiMemoryRequestDto.serializer(),
+        AiMemoryResponseDto.serializer(),
+    )
+
+    suspend fun deleteAiMemory(id: String) {
+        delete("/v1/ai/memories/${UUID.fromString(id)}")
+    }
+
+    suspend fun forgetAllAiMemories() {
+        delete("/v1/ai/memories")
+    }
+
     private suspend fun <T> get(path: String, responseSerializer: KSerializer<T>): T =
         execute(Request.Builder().url(url(path)).get().build(), responseSerializer)
 

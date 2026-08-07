@@ -15,6 +15,7 @@
 		16E6193743C50AC9284EB7EC /* PhysiologyEngines.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */; };
 		185F4C449EBDD982148B9B6C /* PhysiologyGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B28189925C20CC1B2167BE8 /* PhysiologyGoldenTests.swift */; };
 		1AA7766F3524062027A46BF7 /* AppAttestCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 916B854C238515999593C88B /* AppAttestCoordinator.swift */; };
+		201A36B1B24D56437254D83D /* TogetherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F75C03DA73CC5487C9B62E3 /* TogetherView.swift */; };
 		2F3DE158570054FF4629D31E /* PairSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DC768CE39517FBB2FF47D74 /* PairSetupView.swift */; };
 		3027695FDDCB8985857AAD17 /* RafayPairApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF4E8C89A44E77B6336C5AD /* RafayPairApp.swift */; };
 		31D894CFEE0288FA5CD8BD7D /* BreathAudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A40E13E29157D00631DDC0D4 /* BreathAudioCaptureSession.swift */; };
@@ -120,6 +121,7 @@
 		8965FC760C90D3DE43A8BAAF /* PushApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushApplicationDelegate.swift; sourceTree = "<group>"; };
 		89C235E72F5BC4E7D1010B10 /* WorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutView.swift; sourceTree = "<group>"; };
 		8ED4E5919F0E0C4A26D1DA31 /* Repositories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repositories.swift; sourceTree = "<group>"; };
+		8F75C03DA73CC5487C9B62E3 /* TogetherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherView.swift; sourceTree = "<group>"; };
 		8FF959A8CEEE716EA00A3C52 /* PoseEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseEngine.swift; sourceTree = "<group>"; };
 		90DAE67BB6CCC81D5D0411B1 /* PairStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairStore.swift; sourceTree = "<group>"; };
 		916B854C238515999593C88B /* AppAttestCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestCoordinator.swift; sourceTree = "<group>"; };
@@ -169,6 +171,7 @@
 				9A971FA09901EB6CA7C1113C /* Pairing */,
 				DDF4B0DF9BB0739470A914D4 /* Privacy */,
 				BFCFC3068ABC1CE386F1ED39 /* Settings */,
+				54E728244CA87C6C041DAB74 /* Together */,
 				F4EF6B8CA4CB1431A9875513 /* Vitals */,
 				3443CA156AEA7D90970098B8 /* Workout */,
 			);
@@ -252,6 +255,14 @@
 				62B06D5AE6ABFEBC41434048 /* PoseTypes.swift */,
 			);
 			path = Pose;
+			sourceTree = "<group>";
+		};
+		54E728244CA87C6C041DAB74 /* Together */ = {
+			isa = PBXGroup;
+			children = (
+				8F75C03DA73CC5487C9B62E3 /* TogetherView.swift */,
+			);
+			path = Together;
 			sourceTree = "<group>";
 		};
 		6D5EF17A396D5DD23076DF3B = {
@@ -682,6 +693,7 @@
 				AD1DC6C183EAE199B4C9EBBC /* SessionStore.swift in Sources */,
 				3AC9575CBF869D75E318B976 /* SettingsView.swift in Sources */,
 				5EC3C8F499E8B73DD5A62638 /* SignalCore.swift in Sources */,
+				201A36B1B24D56437254D83D /* TogetherView.swift in Sources */,
 				5331C5000B47166CD8D77373 /* TokenVault.swift in Sources */,
 				FA6EB781C0E40C6759994B21 /* VitalsStore.swift in Sources */,
 				C8569745F3013E2F0D6155E3 /* VitalsView.swift in Sources */,

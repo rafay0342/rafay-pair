@@ -112,6 +112,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafaypair.android.BuildConfig
 import com.rafaypair.android.domain.model.CareDeliveryStatus
 import com.rafaypair.android.domain.model.CareDirection
@@ -124,8 +125,12 @@ import com.rafaypair.android.domain.model.PairStatus
 import com.rafaypair.android.domain.model.RealtimeState
 import com.rafaypair.android.domain.model.SessionState
 import com.rafaypair.android.domain.model.User
+import com.rafaypair.android.RafayPairApplication
+import com.rafaypair.android.ui.together.TogetherScreen
+import com.rafaypair.android.ui.together.TogetherViewModel
 import com.rafaypair.android.ui.vitals.VitalsScreen
 import com.rafaypair.android.ui.workout.WorkoutScreen
+import com.rafaypair.android.ui.workout.WorkoutViewModel
 import com.rafaypair.android.ui.theme.Coral500
 import com.rafaypair.android.ui.theme.Mint400
 import java.time.ZoneId
@@ -375,7 +380,8 @@ private fun SignedInScreen(
             Crossfade(state.selectedTab, label = "tab", modifier = Modifier.weight(1f)) { tab ->
                 when (tab) {
                     AppTab.HOME -> HomeScreen(user, state, viewModel, { confirmDisconnect = true })
-                    AppTab.MOVE -> WorkoutScreen()
+                    AppTab.MOVE -> MoveTab()
+                    AppTab.TOGETHER -> TogetherTab(user, state)
                     AppTab.VITALS -> VitalsScreen()
                     AppTab.CARE -> CareScreen(state, viewModel)
                     AppTab.CONSENT -> ConsentScreen(state, viewModel)
@@ -403,11 +409,46 @@ private fun SignedInScreen(
     }
 }
 
+/**
+ * The workout engine is handed the together repository so an accepted shared
+ * session receives derived counts. Without one it simply runs locally.
+ */
+@Composable
+private fun MoveTab() {
+    val container = (LocalContext.current.applicationContext as RafayPairApplication).container
+    WorkoutScreen(
+        viewModel = viewModel(factory = WorkoutViewModel.Factory(container.togetherRepository)),
+    )
+}
+
+/**
+ * Together mode reads its repositories from the application container rather than
+ * from [MainViewModel]: the assistant's memory is per-account and unrelated to the
+ * pair state that view model owns.
+ */
+@Composable
+private fun TogetherTab(user: User, state: MainUiState) {
+    val container = (LocalContext.current.applicationContext as RafayPairApplication).container
+    val togetherViewModel: TogetherViewModel = viewModel(
+        factory = TogetherViewModel.Factory(
+            container.togetherRepository,
+            container.assistantRepository,
+        ),
+    )
+    TogetherScreen(
+        currentUserId = user.id,
+        hasPartner = state.pair?.status == PairStatus.ACTIVE,
+        sharingAllowed = state.partnerSharingAllowed,
+        viewModel = togetherViewModel,
+    )
+}
+
 @Composable
 private fun AppNavigationBar(selected: AppTab, onSelect: (AppTab) -> Unit) {
     NavigationBar(modifier = Modifier.navigationBarsPadding()) {
         NavigationItem(AppTab.HOME, "Home", Icons.Default.Home, selected, onSelect)
         NavigationItem(AppTab.MOVE, "Move", Icons.AutoMirrored.Filled.DirectionsRun, selected, onSelect)
+        NavigationItem(AppTab.TOGETHER, "Together", Icons.Default.People, selected, onSelect)
         NavigationItem(AppTab.VITALS, "Vitals", Icons.Default.MonitorHeart, selected, onSelect)
         NavigationItem(AppTab.CARE, "Care", Icons.Default.Favorite, selected, onSelect)
         NavigationItem(AppTab.CONSENT, "Consent", Icons.Default.Security, selected, onSelect)

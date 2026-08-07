@@ -16,6 +16,8 @@ struct RafayPairApp: App {
 
     init() {
         let dependencies = AppDependencies.live()
+        together = dependencies.together
+        assistant = dependencies.assistant
         _sessionStore = State(initialValue: SessionStore(repository: dependencies.auth))
         _pairStore = State(initialValue: PairStore(repository: dependencies.pair))
         _consentStore = State(initialValue: ConsentStore(repository: dependencies.consent))
@@ -29,6 +31,9 @@ struct RafayPairApp: App {
         PushApplicationDelegate.coordinator = dependencies.notifications
     }
 
+    private let together: any TogetherRepository
+    private let assistant: any AssistantRepository
+
     var body: some Scene {
         WindowGroup {
             RootView(
@@ -40,7 +45,9 @@ struct RafayPairApp: App {
                 realtimeStore: realtimeStore,
                 connectivity: connectivity,
                 notifications: notifications,
-                appAttest: appAttest
+                appAttest: appAttest,
+                together: together,
+                assistant: assistant
             )
             .tint(Brand.coral)
         }

@@ -263,3 +263,137 @@ struct ProblemDetails: Codable, Equatable, Sendable {
 }
 
 struct EmptyResponse: Codable, Sendable {}
+
+// MARK: - Together mode
+
+/// Master specification §10: each phone detects its own user and exchanges only
+/// derived state. There is no field here for a frame, a landmark, or an audio
+/// sample, so none can be transmitted.
+enum TogetherActivity: String, Codable, Sendable, CaseIterable {
+    case squat
+    case bodyweightMixed
+    case guidedBreathing
+}
+
+enum TogetherSessionStatus: String, Codable, Sendable {
+    case invited
+    case active
+    case declined
+    case ended
+    case expired
+}
+
+enum TogetherExercisePhase: String, Codable, Sendable {
+    case idle
+    case descending
+    case bottom
+    case resting
+    case complete
+}
+
+struct TogetherParticipantState: Codable, Sendable, Identifiable {
+    let userId: UUID
+    let repetitions: Int
+    let exercisePhase: TogetherExercisePhase
+    let setIndex: Int
+    let elapsedMs: Int
+    let estimatedKcal: Double?
+    let breathingState: String?
+    let updatedAt: Date
+
+    var id: UUID { userId }
+}
+
+struct TogetherSession: Codable, Sendable, Identifiable {
+    let id: UUID
+    let pairId: UUID
+    let invitedByUserId: UUID
+    let invitedUserId: UUID
+    let activity: TogetherActivity
+    let status: TogetherSessionStatus
+    let createdAt: Date
+    let acceptedAt: Date?
+    let endedAt: Date?
+    let expiresAt: Date
+    let participants: [TogetherParticipantState]
+}
+
+struct TogetherSessionResponse: Codable, Sendable {
+    let session: TogetherSession?
+}
+
+struct CreateTogetherSessionRequest: Codable, Sendable {
+    let activity: TogetherActivity
+}
+
+struct RespondTogetherSessionRequest: Codable, Sendable {
+    let response: String
+}
+
+struct PublishTogetherStateRequest: Codable, Sendable {
+    let repetitions: Int
+    let exercisePhase: TogetherExercisePhase
+    let setIndex: Int
+    let elapsedMs: Int
+    let estimatedKcal: Double?
+    let breathingState: String?
+}
+
+// MARK: - Rafay AI
+
+enum AiMemoryCategory: String, Codable, Sendable, CaseIterable {
+    case preference
+    case routine
+    case boundary
+    case context
+}
+
+struct AiMemory: Codable, Sendable, Identifiable {
+    let id: UUID
+    let category: AiMemoryCategory
+    let content: String
+    /// `assistant` entries were proposed by the model rather than stated by the
+    /// user, and are shown as such.
+    let author: String
+    let createdAt: Date
+    let updatedAt: Date
+}
+
+struct AiMemoryListResponse: Codable, Sendable {
+    let memories: [AiMemory]
+    let limit: Int
+}
+
+struct AiMemoryResponse: Codable, Sendable {
+    let memory: AiMemory
+}
+
+struct CreateAiMemoryRequest: Codable, Sendable {
+    let category: AiMemoryCategory
+    let content: String
+}
+
+struct AiAllowedTool: Codable, Sendable, Identifiable {
+    let name: String
+    let title: String
+    let mutating: Bool
+    let requiresConfirmation: Bool
+
+    var id: String { name }
+}
+
+struct AiSession: Codable, Sendable, Identifiable {
+    let id: UUID
+    let status: String
+    let startedAt: Date
+    let expiresAt: Date
+    let endedAt: Date?
+    let identityAnnounced: Bool
+    /// Server-supplied so a client cannot quietly drop or reword it.
+    let identityDisclosure: String
+    let allowedTools: [AiAllowedTool]
+}
+
+struct AiSessionResponse: Codable, Sendable {
+    let session: AiSession?
+}

@@ -20,6 +20,24 @@ export const apiPaths = Object.freeze({
     pause: "/v1/privacy/pause",
     resume: "/v1/privacy/resume",
   },
+  together: {
+    current: "/v1/together-sessions/current",
+    create: "/v1/together-sessions",
+    respond: (id: string) =>
+      `/v1/together-sessions/${encodeURIComponent(id)}/respond`,
+    state: (id: string) =>
+      `/v1/together-sessions/${encodeURIComponent(id)}/state`,
+    end: (id: string) => `/v1/together-sessions/${encodeURIComponent(id)}/end`,
+  },
+  ai: {
+    memories: "/v1/ai/memories",
+    memory: (id: string) => `/v1/ai/memories/${encodeURIComponent(id)}`,
+    sessions: "/v1/ai/sessions",
+    currentSession: "/v1/ai/sessions/current",
+    identityAnnounced: (id: string) =>
+      `/v1/ai/sessions/${encodeURIComponent(id)}/identity-announced`,
+    endSession: (id: string) => `/v1/ai/sessions/${encodeURIComponent(id)}/end`,
+  },
   realtime: {
     ticket: "/v1/realtime/tickets",
     socket: "/v1/realtime",

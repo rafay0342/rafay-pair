@@ -694,7 +694,7 @@ class DefaultPrivacyRepository(
 
 private class InvalidPrivacyScopeResponse : Exception()
 
-private fun ApiHttpException.asRepositoryFailure() = RepositoryFailure(
+internal fun ApiHttpException.asRepositoryFailure() = RepositoryFailure(
     title = problem.title,
     message = problem.detail ?: problem.title,
     status = status,
