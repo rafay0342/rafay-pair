@@ -282,9 +282,7 @@ export interface FaceRppgSynthOptions {
   readonly seed?: number;
 }
 
-export function synthesiseFaceRppg(
-  options: FaceRppgSynthOptions,
-): {
+export function synthesiseFaceRppg(options: FaceRppgSynthOptions): {
   timestampMs: number;
   green: number;
   luma: number;
@@ -337,10 +335,16 @@ export function synthesiseFaceRppg(
       luma: round3(luma + drift + rng.normal() * noise),
       faceArea: lost ? 0 : faceArea,
       faceCenterX: round6(
-        0.5 + (headMotion > 0 ? headMotion * Math.sin(2 * Math.PI * 0.8 * seconds) : 0),
+        0.5 +
+          (headMotion > 0
+            ? headMotion * Math.sin(2 * Math.PI * 0.8 * seconds)
+            : 0),
       ),
       faceCenterY: round6(
-        0.45 + (headMotion > 0 ? headMotion * Math.cos(2 * Math.PI * 0.7 * seconds) : 0),
+        0.45 +
+          (headMotion > 0
+            ? headMotion * Math.cos(2 * Math.PI * 0.7 * seconds)
+            : 0),
       ),
     });
 

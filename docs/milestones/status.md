@@ -62,8 +62,32 @@ Two algorithmic faults were found while validating the vectors and fixed in the 
 - **Octave error.** Autocorrelation peaks just as strongly at whole multiples of the true period, so an unguarded maximum reported half the real rate — 124 BPM read as 62, 88 as 44, 14 breaths per minute as 7. A fabricated-but-plausible number is worse than no number. Subharmonic suppression compares the candidate at `lag / k` against the peak: a genuine subharmonic correlates comparably, a false one lands antiphase and correlates negatively.
 - **Filter not matched to the search band.** The breathing smoothing window was chosen for mild denoising rather than for the top of the band being searched, so ordinary fidgeting at 1.4 Hz survived it and won the correlation peak, producing a confident wrong rate. The window is now matched to the band, and both estimators additionally reject with `unstable` when per-window rates disagree — a rate that jumps between windows is not a rate.
 
-Deliberate omissions, recorded rather than left silent:
+### Microphone breathing (master specification §6C)
 
-- **Web finger-camera pulse is not implemented.** The measurement needs the rear lens with its torch lit and its exposure locked; browsers expose neither reliably. Shipping a browser version would mean a worse estimate under the same label, so the Web client says where the measurement lives instead. The master specification anticipates this: web pulse is separately qualified by device capability.
-- **Microphone breathing (master specification §6C) is not implemented.** It needs an audio capture path with its own retention rules, and the camera estimate already covers the same product need; adding microphone permission exposure for no user-visible gain was not justified in this gate.
-- **Face-camera rPPG (§3.3) is not implemented.** It is explicitly optional and experimental in the specification.
+Implemented end to end: `engines/breathing-estimation-spec/MICROPHONE.md`, engine, golden vectors, three ports, capture on iOS (`AVAudioEngine`) and Android (`AudioRecord`, `UNPROCESSED` source), and UI. Breath sounds carry rhythm the camera cannot see — under a blanket, in the dark, out of frame.
+
+Raw audio is never retained, and that is structural: the estimator's input type carries only per-hop features, so audio cannot cross the boundary even by mistake. Listening is opt-in inside a session the user already started. Parity is split into two contracts — feature extraction from raw PCM, and rate recovery from features — so a failure says which half broke.
+
+Validating it exposed a real flaw in the shared core. Breath sound peaks twice per cycle, loud on the inhale and again on the exhale, so the subharmonic ratio test halved every measured rate; replacing it with a margin test then broke the pulse estimator in the opposite direction. The resolution is that harmonic folding is a property of the signal's physics rather than a tuning constant, so each estimator now declares it: one signal cycle per event for a heartbeat, two energy bursts per cycle for breath.
+
+### Face-camera rPPG (master specification §3.3)
+
+Implemented end to end and shipping **off**, which is what "experimental" means here. Every rule the specification attaches is enforced structurally rather than editorially: `FACE_RPPG_ENABLED` is a single flag, `experimental` is a literal on the result type, thresholds are stricter than the fingertip estimator's throughout, and §6 of its specification bars the result from animating the heart, from the consent-gated share, and from the stored latest pulse.
+
+The lighting gate is the substantive addition. Slow illumination drift produces exactly the oscillation an rPPG estimator mistakes for a pulse — the golden vector for it carries a periodicity of 0.83, which would otherwise have been reported as a confident rate. The torch removes that problem on the fingertip path; here it has to be caught, so a session whose brightness swung too far is refused outright.
+
+### Web finger-camera pulse
+
+Not implemented, and the Web client says so. The measurement needs the rear lens with its torch lit and its exposure locked; browsers expose neither reliably, and without a lit fingertip the signal is not recoverable. The master specification anticipates exactly this: web pulse is separately qualified by device capability. Guided breathing, which needs no sensor, runs in the browser from the same deterministic schedule the phones use.
+
+## Build and device setup
+
+Three things previously listed as blockers are now handled in the repository rather than left to manual steps.
+
+**Web pose model.** `scripts/fetch-pose-model.mjs` runs before every Web build and dev server. It copies the MediaPipe runtime out of the installed npm package and downloads the BlazePose model, verifying its SHA-256 against a pinned digest. The assets are cached at runtime by the service worker rather than precached, so an installed PWA keeps working offline after one workout without a tens-of-megabytes first install. If the network is unavailable the build still succeeds and the Move page reports local pose unavailable; there is no server fallback path in the client.
+
+**iOS on a real device.** `scripts/build-ios-device.sh` signs with automatic provisioning and installs onto a connected iPhone. No paid Apple Developer membership is involved — a personal Apple ID is enough for a seven-day development install. The team identifier comes from `RAFAYPAIR_DEVELOPMENT_TEAM` or a git-ignored `apps/ios/Config/Local.xcconfig`, and when neither is present the script prints the exact one-time Xcode account steps instead of failing obscurely.
+
+**Android release identifiers.** `docs/operations/android-release-credentials.md` walks through obtaining the four Firebase values and the one Play Integrity value from scratch, and explains which single item is actually secret. Values may now live in a git-ignored `apps/android/local.properties` rather than only in environment variables. Verified end to end: `bundleRelease` succeeds once the five identifiers are present.
+
+What still needs a person: the Xcode account on this machine has half-signed-in credentials (`missing Xcode-Username`), which the command line cannot repair; re-adding the Apple ID in Xcode → Settings → Accounts is a one-time GUI action. Real-device validation of finger-camera pulse additionally needs a reference reading — a smartwatch, a pulse oximeter, or a manually counted rate — because a simulator has no fingertip and no torch, and an estimate with nothing to compare against is not evidence.

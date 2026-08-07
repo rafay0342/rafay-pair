@@ -49,18 +49,21 @@
 		8BD1CA0C026C3520279BBC8A /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D576D0BAC0535B7628165EE3 /* APIModels.swift */; };
 		8CCA6CFE517A1610EDD7AC23 /* ConsentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40FA50F6741D04AB9B97AFE /* ConsentView.swift */; };
 		91C34D3B5D203DA7D0E645B7 /* PrivacyAndCareStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6266C14966FB8962D25E7A66 /* PrivacyAndCareStateTests.swift */; };
+		9A508FBCC292453847E3F468 /* CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0C337D0940E232DDED0F75 /* CameraPreview.swift */; };
 		9E620344CD1C865901390613 /* PoseCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61068FC08AFF6944F91547E4 /* PoseCaptureSession.swift */; };
 		A226F2CED9E2E665D41D71B6 /* AppAttestKeyIDVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = B529A1E3ABDF0D84CCBB505B /* AppAttestKeyIDVault.swift */; };
 		A5A862BAB8111B068E231130 /* PushNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C088111388D3F9993E3DDF3 /* PushNotificationTests.swift */; };
 		AD1DC6C183EAE199B4C9EBBC /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B6438FB6837DC7D3F509BA /* SessionStore.swift */; };
 		AD2A91474E90C62B0475631A /* PoseTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B06D5AE6ABFEBC41434048 /* PoseTypes.swift */; };
 		BE480828D5F5AC3097305F30 /* PushApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8965FC760C90D3DE43A8BAAF /* PushApplicationDelegate.swift */; };
+		C30A50183A0FF6190E2BAC7E /* FaceRppgCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE4E937B42EA10143ED1C03 /* FaceRppgCaptureSession.swift */; };
 		C8569745F3013E2F0D6155E3 /* VitalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC5FE959CD5FDC087C02A40 /* VitalsView.swift */; };
 		CF5BB151D4F864BE48BC3550 /* AudioBreathingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E50940CBB896C684180782C /* AudioBreathingEngine.swift */; };
 		D5E5E231B1B341EE3C157C6E /* AppAttestRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 260AEBF56186F8217C385B88 /* AppAttestRepository.swift */; };
 		E0AFE798D4FB8096AEBECBE6 /* PushNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81E50AE1287A136AC71A880 /* PushNotificationService.swift */; };
 		E56395637DB0AAF9F08A20C4 /* RafayPairUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B85603F030F8602D15FEADA /* RafayPairUITests.swift */; };
 		EA54439E33FCB200FDF10307 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53B7F5257CF8F8E5FD37B937 /* AuthenticationView.swift */; };
+		F26880031F5BDAA259BBEF08 /* FaceRppgEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D4D5E0008CE31E71A05855 /* FaceRppgEngine.swift */; };
 		F759FD75715DD601D90E6F63 /* RealtimeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1837BF6C8FA93BCC8927C12 /* RealtimeClient.swift */; };
 		FA6EB781C0E40C6759994B21 /* VitalsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117E83B0F63890B736C3CADC /* VitalsStore.swift */; };
 		FEEBC791F5277824F8A94ABB /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B37E00E377B64081E969F46 /* AppDependencies.swift */; };
@@ -136,6 +139,7 @@
 		BA7A1CA288E102D133697809 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		C1005EF55FF9B367088683D5 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		C40FA50F6741D04AB9B97AFE /* ConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentView.swift; sourceTree = "<group>"; };
+		CA0C337D0940E232DDED0F75 /* CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreview.swift; sourceTree = "<group>"; };
 		CAF4E8C89A44E77B6336C5AD /* RafayPairApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RafayPairApp.swift; sourceTree = "<group>"; };
 		CE0603A07EDF69892DA0CD9E /* TokenVaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenVaultTests.swift; sourceTree = "<group>"; };
 		D576D0BAC0535B7628165EE3 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
@@ -143,6 +147,7 @@
 		E1F2384DC63024D7B1451C00 /* RealtimeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeStore.swift; sourceTree = "<group>"; };
 		E30705699D60ACAF7261AC5F /* NotificationStateVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationStateVault.swift; sourceTree = "<group>"; };
 		E350E8221D3CF9A6A24910E6 /* MainShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainShellView.swift; sourceTree = "<group>"; };
+		E7D4D5E0008CE31E71A05855 /* FaceRppgEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceRppgEngine.swift; sourceTree = "<group>"; };
 		E805BB01585F9DACD87A5B34 /* PoseGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseGeometry.swift; sourceTree = "<group>"; };
 		E8DE173B4507B8A2A485F73B /* PoseGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseGoldenTests.swift; sourceTree = "<group>"; };
 		E8F8E62A400421AE0387D44F /* AppAttestCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestCoordinatorTests.swift; sourceTree = "<group>"; };
@@ -150,6 +155,7 @@
 		F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyTypes.swift; sourceTree = "<group>"; };
 		F76FD52B2E4F7005BA74E417 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		FCA96A2F2E56A2A9B8353540 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		FDE4E937B42EA10143ED1C03 /* FaceRppgCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceRppgCaptureSession.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -283,6 +289,7 @@
 			isa = PBXGroup;
 			children = (
 				F76FD52B2E4F7005BA74E417 /* Brand.swift */,
+				CA0C337D0940E232DDED0F75 /* CameraPreview.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -329,6 +336,8 @@
 			children = (
 				6E50940CBB896C684180782C /* AudioBreathingEngine.swift */,
 				A40E13E29157D00631DDC0D4 /* BreathAudioCaptureSession.swift */,
+				FDE4E937B42EA10143ED1C03 /* FaceRppgCaptureSession.swift */,
+				E7D4D5E0008CE31E71A05855 /* FaceRppgEngine.swift */,
 				AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */,
 				F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */,
 				A1E0247EB2108455743A73B2 /* PulseCaptureSession.swift */,
@@ -640,12 +649,15 @@
 				EA54439E33FCB200FDF10307 /* AuthenticationView.swift in Sources */,
 				3FA84533FFEFC0BDD2247B2F /* Brand.swift in Sources */,
 				31D894CFEE0288FA5CD8BD7D /* BreathAudioCaptureSession.swift in Sources */,
+				9A508FBCC292453847E3F468 /* CameraPreview.swift in Sources */,
 				4D68307703F77DD6E6430385 /* CareDraft.swift in Sources */,
 				4E5F5A907FC1F1FF0839BE82 /* CareStore.swift in Sources */,
 				090D67FBAD28B7CA153EDBD0 /* CareView.swift in Sources */,
 				7DD74683B3D616469DC3FAFE /* ConsentStore.swift in Sources */,
 				8CCA6CFE517A1610EDD7AC23 /* ConsentView.swift in Sources */,
 				38A47CE7DBA2A7CCB59E4BD9 /* ExerciseEngine.swift in Sources */,
+				C30A50183A0FF6190E2BAC7E /* FaceRppgCaptureSession.swift in Sources */,
+				F26880031F5BDAA259BBEF08 /* FaceRppgEngine.swift in Sources */,
 				6A4F7F5B026ACDCF69C4463D /* HomeView.swift in Sources */,
 				3783FFE976532A05CBF5E92F /* MainShellView.swift in Sources */,
 				63C5D35F0D8E164B954BD375 /* NotificationStateVault.swift in Sources */,

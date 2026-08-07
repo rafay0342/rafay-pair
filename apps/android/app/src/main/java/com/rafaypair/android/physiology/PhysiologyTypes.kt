@@ -186,6 +186,75 @@ data class BreathingPhaseState(
 )
 
 /**
+ * One frame of the face-derived rPPG signal.
+ *
+ * No image is retained: the capture layer produces these six numbers and
+ * releases the buffer, exactly as the fingertip path does.
+ *
+ * @property green Mean green channel over the facial region, `0..255`.
+ * @property luma Mean brightness of the same region; drives the lighting gate.
+ * @property faceArea Detected face box area as a fraction of the frame.
+ */
+data class FaceRppgSample(
+    val timestampMs: Double,
+    val green: Double,
+    val luma: Double,
+    val faceArea: Double,
+    val faceCenterX: Double,
+    val faceCenterY: Double,
+)
+
+enum class FaceRppgRejectionReason(val wireName: String) {
+    TOO_SHORT("tooShort"),
+    FACE_NOT_STABLE("faceNotStable"),
+    UNSTABLE_LIGHTING("unstableLighting"),
+    EXCESSIVE_MOTION("excessiveMotion"),
+    NO_PERIODICITY("noPeriodicity"),
+    UNSTABLE("unstable"),
+    OUT_OF_RANGE("outOfRange"),
+}
+
+/**
+ * `experimental` is fixed on the type, so no consumer can strip the caveat.
+ * Specification §6 forbids this result from the heart visualization, the
+ * consent-gated share, and the stored latest pulse.
+ */
+sealed interface FaceRppgResult {
+    val statusName: String
+    val quality: SignalQuality
+    val sampleCount: Int
+    val durationMs: Double
+    val lumaSwing: Double
+
+    data class Measured(
+        val bpm: Double,
+        override val durationMs: Double,
+        override val sampleCount: Int,
+        val effectiveSampleRateHz: Double,
+        override val quality: SignalQuality,
+        override val lumaSwing: Double,
+        val confidence: Double,
+        val confidenceBand: ConfidenceBand,
+        val measuredAtMs: Double,
+    ) : FaceRppgResult {
+        override val statusName = "measured"
+        val source = "face_camera_rppg"
+        val kind = "app_estimated"
+        val experimental = true
+    }
+
+    data class Rejected(
+        val reason: FaceRppgRejectionReason,
+        override val durationMs: Double,
+        override val sampleCount: Int,
+        override val quality: SignalQuality,
+        override val lumaSwing: Double,
+    ) : FaceRppgResult {
+        override val statusName = "rejected"
+    }
+}
+
+/**
  * One hop of microphone-derived features.
  *
  * This type deliberately carries no audio. It is the boundary the retention rule
@@ -308,6 +377,42 @@ object PhysiologyTuning {
      * and again on the exhale.
      */
     const val SUBHARMONIC_MARGIN = 0.02
+
+    // Face-camera rPPG, research mode — engines/pulse-estimation-spec/FACE_RPPG.md
+    /**
+     * Off by default. Master specification §3.3 requires this mode to be
+     * experimental and removable; the flag is the single switch.
+     */
+    const val FACE_RPPG_ENABLED = false
+
+    const val FACE_DETREND_WINDOW_SAMPLES = 61
+    const val FACE_SMOOTH_WINDOW_SAMPLES = 7
+    const val FACE_MIN_BPM = 42.0
+    const val FACE_MAX_BPM = 180.0
+
+    const val FACE_MIN_LUMA = 60.0
+    const val FACE_MAX_LUMA = 235.0
+    const val FACE_MIN_AREA = 0.04
+    const val FACE_MAX_CENTER_SHIFT = 0.03
+    const val FACE_MAX_LUMA_SWING = 0.18
+
+    const val FACE_MOTION_SCALE = 4.0
+    const val FACE_STABILITY_WINDOW_SAMPLES = 240
+    const val FACE_STABILITY_STEP_SAMPLES = 60
+    const val FACE_STABILITY_SCALE = 15.0
+    const val FACE_CONFIDENCE_FULL_DURATION_MS = 40_000.0
+
+    const val FACE_MIN_DURATION_MS = 15_000.0
+    const val FACE_MAX_DURATION_MS = 60_000.0
+
+    /**
+     * Stricter than the fingertip path throughout: a weaker signal earns less
+     * benefit of the doubt, not more.
+     */
+    const val FACE_MIN_COVERAGE = 0.85
+    const val FACE_MIN_PERIODICITY = 0.6
+    const val FACE_MAX_MOTION = 0.3
+    const val FACE_MIN_STABILITY = 0.45
 
     const val AUDIO_SAMPLE_RATE_HZ = 16_000.0
     const val AUDIO_HIGH_PASS_HZ = 200.0

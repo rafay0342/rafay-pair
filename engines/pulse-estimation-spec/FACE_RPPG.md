@@ -14,18 +14,18 @@ by light, movement, and skin tone variation.
 The master specification therefore admits it only as **experimental research
 mode**, and every rule it attaches is enforced here structurally:
 
-| Rule | How it is enforced |
-| --- | --- |
-| Experimental only | Behind `FACE_RPPG_ENABLED`; off by default, and §7 requires the application to build and run with it off |
-| Must disclose it is an estimate | `source = "face_camera_rppg"`, `kind = "app_estimated"`, `experimental = true` are literals on the result type |
-| Never used for diagnosis | No result field can carry a measured-grade value, and nothing consumes it as one |
+| Rule                               | How it is enforced                                                                                                           |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Experimental only                  | Behind `FACE_RPPG_ENABLED`; off by default, and §7 requires the application to build and run with it off                     |
+| Must disclose it is an estimate    | `source = "face_camera_rppg"`, `kind = "app_estimated"`, `experimental = true` are literals on the result type               |
+| Never used for diagnosis           | No result field can carry a measured-grade value, and nothing consumes it as one                                             |
 | Never silently activate the camera | Capture starts only from an explicit user action inside this mode; the same permission and session lifecycle as finger pulse |
-| Device and lighting quality gate | §4, evaluated before any rate is reported |
-| Must expose confidence | Confidence and its band are on every measured result, as elsewhere |
-| Removable without breaking the app | §7 |
+| Device and lighting quality gate   | §4, evaluated before any rate is reported                                                                                    |
+| Must expose confidence             | Confidence and its band are on every measured result, as elsewhere                                                           |
+| Removable without breaking the app | §7                                                                                                                           |
 
 Thresholds throughout are stricter than the fingertip estimator's. A weaker
-signal earns *less* benefit of the doubt, not more.
+signal earns _less_ benefit of the doubt, not more.
 
 ## 2. Input
 
@@ -83,7 +83,7 @@ FACE_MAX_CENTER_SHIFT  = 0.03    per-frame head movement, frame-normalized
 FACE_MAX_LUMA_SWING    = 0.18    fractional luma range across the session
 ```
 
-A frame is *usable* when `FACE_MIN_LUMA <= luma <= FACE_MAX_LUMA`,
+A frame is _usable_ when `FACE_MIN_LUMA <= luma <= FACE_MAX_LUMA`,
 `faceArea >= FACE_MIN_AREA`, and its centre moved less than
 `FACE_MAX_CENTER_SHIFT` from the previous usable frame. `coverage` is the
 fraction of usable frames.

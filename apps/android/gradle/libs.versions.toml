@@ -21,6 +21,7 @@ firebase-bom = "34.16.0"
 play-integrity = "1.6.0"
 camerax = "1.6.1"
 mlkit-pose = "18.0.0-beta5"
+mlkit-face = "16.1.7"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core" }
@@ -60,6 +61,7 @@ androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.r
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
 mlkit-pose-detection = { module = "com.google.mlkit:pose-detection", version.ref = "mlkit-pose" }
+mlkit-face-detection = { module = "com.google.mlkit:face-detection", version.ref = "mlkit-face" }
 play-integrity = { module = "com.google.android.play:integrity", version.ref = "play-integrity" }
 
 [plugins]

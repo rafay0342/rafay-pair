@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +50,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rafaypair.android.physiology.BreathingPattern
 import com.rafaypair.android.physiology.BreathingPhase
 import com.rafaypair.android.physiology.BreathAudioCaptureController
+import com.rafaypair.android.physiology.FaceRppgCaptureController
+import com.rafaypair.android.physiology.FaceRppgEstimator
+import com.rafaypair.android.physiology.FaceRppgRejectionReason
+import com.rafaypair.android.physiology.FaceRppgResult
+import com.rafaypair.android.physiology.FaceRppgSample
+import com.rafaypair.android.physiology.PhysiologyTuning
 import com.rafaypair.android.physiology.PulseCaptureController
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -156,8 +164,129 @@ fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
             onStop = { viewModel.stopBreathing(System.currentTimeMillis()) },
             audioGuidance = viewModel::audioGuidance,
         )
+        // Master specification §3.3: experimental, and removable. With the flag
+        // off this surface does not exist and nothing else references the engine.
+        if (PhysiologyTuning.FACE_RPPG_ENABLED) {
+            FaceRppgCard(context = context, lifecycleOwner = lifecycleOwner)
+        }
         BloodPressureCard()
     }
+}
+
+@Composable
+private fun FaceRppgCard(
+    context: android.content.Context,
+    lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+) {
+    val previewView = remember { PreviewView(context) }
+    val samples = remember { mutableListOf<FaceRppgSample>() }
+    var measuring by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<FaceRppgResult?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val controller = remember {
+        FaceRppgCaptureController(context) { samples.add(it) }
+    }
+    DisposableEffect(Unit) { onDispose { controller.release() } }
+    DisposableEffect(measuring) {
+        if (measuring) {
+            controller.start(lifecycleOwner, previewView) { error = it }
+        } else {
+            controller.stop()
+        }
+        onDispose { }
+    }
+
+    Card {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Face pulse (research)", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "An experiment. Reading a pulse from facial colour is far weaker than " +
+                    "from a fingertip, and it fails easily in changing light.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "It is never used for diagnosis, never animates the heart above, and is " +
+                    "never shared with your partner.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (measuring) {
+                AndroidView(factory = { previewView }, modifier = Modifier.fillMaxWidth())
+            }
+
+            result?.let { outcome ->
+                when (outcome) {
+                    is FaceRppgResult.Measured -> {
+                        Text(
+                            "${outcome.bpm} BPM — experimental estimate",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            "${outcome.confidenceBand.wireName} confidence",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    is FaceRppgResult.Rejected -> Text(
+                        faceRejection(outcome.reason),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+            error?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            TextButton(
+                onClick = {
+                    if (measuring) {
+                        result = FaceRppgEstimator.estimate(
+                            samples.toList(), System.currentTimeMillis().toDouble(),
+                        )
+                        measuring = false
+                    } else {
+                        samples.clear()
+                        result = null
+                        error = null
+                        measuring = true
+                    }
+                },
+            ) { Text(if (measuring) "Stop" else "Try it") }
+        }
+    }
+}
+
+private fun faceRejection(reason: FaceRppgRejectionReason): String = when (reason) {
+    FaceRppgRejectionReason.TOO_SHORT ->
+        "This mode needs about forty seconds to say anything."
+
+    FaceRppgRejectionReason.FACE_NOT_STABLE ->
+        "Your face needs to stay in view and still."
+
+    FaceRppgRejectionReason.UNSTABLE_LIGHTING ->
+        "The light changed during the session, which this method cannot separate " +
+            "from a pulse."
+
+    FaceRppgRejectionReason.EXCESSIVE_MOTION -> "There was too much movement."
+    FaceRppgRejectionReason.NO_PERIODICITY -> "No steady rhythm came through."
+
+    FaceRppgRejectionReason.UNSTABLE ->
+        "The reading kept drifting, so no single rate would be honest."
+
+    FaceRppgRejectionReason.OUT_OF_RANGE ->
+        "The result was outside a plausible range, so it was discarded."
 }
 
 @Composable

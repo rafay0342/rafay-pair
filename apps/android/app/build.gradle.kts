@@ -402,6 +402,8 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mlkit.pose.detection)
+    // Experimental face rPPG (master spec 3.3); on-device detection only.
+    implementation(libs.mlkit.face.detection)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

@@ -222,6 +222,90 @@ struct BreathingPhaseState: Sendable, Equatable {
     var remainingMs: Double
 }
 
+/// One frame of the face-derived rPPG signal.
+///
+/// No image is retained: the capture layer produces these six numbers and
+/// releases the buffer, exactly as the fingertip path does.
+struct FaceRppgSample: Sendable {
+    var timestampMs: Double
+    /// Mean green channel over the facial region, `0...255`.
+    var green: Double
+    /// Mean brightness of the same region; drives the lighting gate.
+    var luma: Double
+    /// Detected face box area as a fraction of the frame.
+    var faceArea: Double
+    var faceCenterX: Double
+    var faceCenterY: Double
+}
+
+enum FaceRppgRejectionReason: String, Sendable {
+    case tooShort
+    case faceNotStable
+    case unstableLighting
+    case excessiveMotion
+    case noPeriodicity
+    case unstable
+    case outOfRange
+}
+
+/// `experimental` is fixed on the type, so no consumer can strip the caveat.
+/// Specification §6 forbids this result from the heart visualization, the
+/// consent-gated share, and the stored latest pulse.
+struct MeasuredFaceRppg: Sendable {
+    var bpm: Double
+    var durationMs: Double
+    var sampleCount: Int
+    var effectiveSampleRateHz: Double
+    var quality: SignalQuality
+    var lumaSwing: Double
+    var confidence: Double
+    var confidenceBand: ConfidenceBand
+    var measuredAtMs: Double
+
+    let source = "face_camera_rppg"
+    let kind = "app_estimated"
+    let experimental = true
+}
+
+enum FaceRppgResult: Sendable {
+    case measured(MeasuredFaceRppg)
+    case rejected(
+        reason: FaceRppgRejectionReason,
+        durationMs: Double,
+        sampleCount: Int,
+        quality: SignalQuality,
+        lumaSwing: Double
+    )
+
+    var statusName: String {
+        switch self {
+        case .measured: "measured"
+        case .rejected: "rejected"
+        }
+    }
+
+    var quality: SignalQuality {
+        switch self {
+        case .measured(let result): result.quality
+        case .rejected(_, _, _, let quality, _): quality
+        }
+    }
+
+    var sampleCount: Int {
+        switch self {
+        case .measured(let result): result.sampleCount
+        case .rejected(_, _, let count, _, _): count
+        }
+    }
+
+    var lumaSwing: Double {
+        switch self {
+        case .measured(let result): result.lumaSwing
+        case .rejected(_, _, _, _, let swing): swing
+        }
+    }
+}
+
 /// One hop of microphone-derived features.
 ///
 /// This type deliberately carries no audio. It is the boundary the retention
@@ -348,6 +432,37 @@ enum PhysiologyTuning {
     /// Two energy bursts per physical cycle — breath sound, loud on the inhale
     /// and again on the exhale.
     static let subharmonicMargin = 0.02
+
+    // Face-camera rPPG, research mode — engines/pulse-estimation-spec/FACE_RPPG.md
+    /// Off by default. Master specification §3.3 requires this mode to be
+    /// experimental and removable; the flag is the single switch.
+    static let faceRppgEnabled = false
+
+    static let faceDetrendWindowSamples = 61
+    static let faceSmoothWindowSamples = 7
+    static let faceMinBpm = 42.0
+    static let faceMaxBpm = 180.0
+
+    static let faceMinLuma = 60.0
+    static let faceMaxLuma = 235.0
+    static let faceMinArea = 0.04
+    static let faceMaxCenterShift = 0.03
+    static let faceMaxLumaSwing = 0.18
+
+    static let faceMotionScale = 4.0
+    static let faceStabilityWindowSamples = 240
+    static let faceStabilityStepSamples = 60
+    static let faceStabilityScale = 15.0
+    static let faceConfidenceFullDurationMs = 40_000.0
+
+    static let faceMinDurationMs = 15_000.0
+    static let faceMaxDurationMs = 60_000.0
+    /// Stricter than the fingertip path throughout: a weaker signal earns less
+    /// benefit of the doubt, not more.
+    static let faceMinCoverage = 0.85
+    static let faceMinPeriodicity = 0.6
+    static let faceMaxMotion = 0.3
+    static let faceMinStability = 0.45
 
     static let audioSampleRateHz = 16_000.0
     static let audioHighPassHz = 200.0

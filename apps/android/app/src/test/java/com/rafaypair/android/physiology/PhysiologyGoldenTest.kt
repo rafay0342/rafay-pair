@@ -258,6 +258,87 @@ class PhysiologyGoldenTest {
     }
 
     @Serializable
+    private data class FaceExpectation(
+        val status: String,
+        val reason: String? = null,
+        val bpm: Double? = null,
+        val durationMs: Double,
+        val sampleCount: Int,
+        val lumaSwing: Double,
+        val confidence: Double? = null,
+        val confidenceBand: String? = null,
+        val quality: QualityVector,
+    )
+
+    @Serializable
+    private data class FaceVector(
+        val name: String,
+        val measuredAtMs: Double,
+        val samples: List<List<Double>>,
+        val expected: FaceExpectation,
+    )
+
+    @Test
+    fun faceRppgShipsDisabled() {
+        // Master specification §3.3: experimental only. The engine exists and is
+        // tested, but nothing turns it on by default.
+        assertTrue(!PhysiologyTuning.FACE_RPPG_ENABLED)
+    }
+
+    @Test
+    fun faceRppgVectorsMatch() {
+        for (name in FACE_VECTORS) {
+            val vector = loadVector<FaceVector>("face-rppg", name)
+            val samples = vector.samples.map {
+                FaceRppgSample(it[0], it[1], it[2], it[3], it[4], it[5])
+            }
+            val actual = FaceRppgEstimator.estimate(samples, vector.measuredAtMs)
+
+            assertEquals(name, vector.expected.status, actual.statusName)
+            assertEquals(name, vector.expected.sampleCount, actual.sampleCount)
+            assertEquals(name, vector.expected.lumaSwing, actual.lumaSwing, tolerance)
+            assertQuality(actual.quality, vector.expected.quality, name)
+
+            when (actual) {
+                is FaceRppgResult.Measured -> {
+                    assertEquals(name, vector.expected.bpm!!, actual.bpm, tolerance)
+                    assertEquals(
+                        name, vector.expected.confidenceBand, actual.confidenceBand.wireName,
+                    )
+                    assertEquals(name, "face_camera_rppg", actual.source)
+                    assertEquals(name, "app_estimated", actual.kind)
+                    // The caveat is fixed on the type; no consumer can strip it.
+                    assertTrue(name, actual.experimental)
+                }
+
+                is FaceRppgResult.Rejected ->
+                    assertEquals(name, vector.expected.reason, actual.reason.wireName)
+            }
+        }
+    }
+
+    @Test
+    fun faceRppgRefusesChangingLight() {
+        // Slow illumination drift is exactly what rPPG mistakes for a pulse, and
+        // it is the failure the fingertip path avoids by lighting the finger.
+        val vector = loadVector<FaceVector>("face-rppg", "changing-light")
+        assertEquals("rejected", vector.expected.status)
+        assertEquals("unstableLighting", vector.expected.reason)
+        assertTrue(vector.expected.quality.periodicity > 0.6)
+    }
+
+    @Test
+    fun faceRppgHoldsAStricterBarThanTheFingertip() {
+        // A weaker signal earns less benefit of the doubt, not more.
+        assertTrue(
+            PhysiologyTuning.FACE_MIN_PERIODICITY > PhysiologyTuning.PULSE_MIN_PERIODICITY,
+        )
+        assertTrue(
+            PhysiologyTuning.FACE_MIN_STABILITY > PhysiologyTuning.PULSE_MIN_STABILITY,
+        )
+    }
+
+    @Serializable
     private data class AudioFrameVector(
         val name: String,
         val sampleRateHz: Int,
@@ -426,6 +507,18 @@ class PhysiologyGoldenTest {
             "post-exercise-124bpm",
             "short-session",
             "sliding-finger",
+        )
+
+        val FACE_VECTORS = listOf(
+            "changing-light",
+            "face-lost",
+            "no-pulsation",
+            "restless-head",
+            "session-too-short",
+            "slight-head-drift",
+            "too-dark",
+            "well-lit-70bpm",
+            "well-lit-96bpm",
         )
 
         val AUDIO_FRAME_VECTORS = listOf("clipped-input", "steady-breathing")

@@ -47,11 +47,7 @@ import {
   roundToTenth,
   stabilityOf,
 } from "./signal.js";
-import type {
-  FaceRppgResult,
-  FaceRppgSample,
-  SignalQuality,
-} from "./types.js";
+import type { FaceRppgResult, FaceRppgSample, SignalQuality } from "./types.js";
 
 const MIN_LAG = Math.round((60 * RESAMPLE_HZ) / FACE_MAX_BPM);
 const MAX_LAG = Math.round((60 * RESAMPLE_HZ) / FACE_MIN_BPM);
@@ -145,7 +141,13 @@ export function estimateFaceRppg(
     );
   }
   if (motion > FACE_MAX_MOTION) {
-    return reject("excessiveMotion", durationMs, sampleCount, quality, lumaSwing);
+    return reject(
+      "excessiveMotion",
+      durationMs,
+      sampleCount,
+      quality,
+      lumaSwing,
+    );
   }
   if (periodicity < FACE_MIN_PERIODICITY || refinedLag === undefined) {
     return reject("noPeriodicity", durationMs, sampleCount, quality, lumaSwing);

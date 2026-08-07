@@ -8,6 +8,8 @@ struct VitalsView: View {
     @State private var store = VitalsStore()
     @State private var capture = PulseCaptureSession()
     @State private var breathAudio = BreathAudioCaptureSession()
+    @State private var faceCapture = FaceRppgCaptureSession()
+    @State private var faceResult: FaceRppgResult?
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -17,6 +19,12 @@ struct VitalsView: View {
                 heartCard
                 measureCard
                 breathingCard
+                // Master specification §3.3: experimental, and removable. With
+                // the flag off this surface does not exist and nothing else
+                // references the engine.
+                if PhysiologyTuning.faceRppgEnabled {
+                    faceRppgCard
+                }
                 bloodPressureCard
             }
             .padding(18)
@@ -27,6 +35,7 @@ struct VitalsView: View {
         .onDisappear {
             capture.stop()
             breathAudio.stop()
+            faceCapture.stop()
             store.cancelMeasurement()
         }
     }
@@ -249,6 +258,95 @@ struct VitalsView: View {
         case .exhale: "Breathe out"
         case .holdAfter: "Rest"
         case .complete: "Done"
+        }
+    }
+
+    // MARK: - Face rPPG, research mode
+
+    private var faceRppgCard: some View {
+        RPCard {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Face pulse (research)", systemImage: "flask.fill")
+                    .font(.headline)
+                    .foregroundStyle(Brand.plum)
+                Text(
+                    "An experiment. Reading a pulse from facial colour is far weaker than from a fingertip, and it fails easily in changing light."
+                )
+                .foregroundStyle(.secondary)
+                Text(
+                    "It is never used for diagnosis, never animates the heart above, and is never shared with your partner."
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+                if faceCapture.state == .measuring {
+                    CameraPreview(session: faceCapture.captureSession)
+                        .aspectRatio(3 / 4, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    ProgressView(value: faceCapture.progress)
+                    Text(faceGuidance)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let faceResult {
+                    switch faceResult {
+                    case .measured(let result):
+                        Text("\(result.bpm, specifier: "%.1f") BPM — experimental estimate")
+                            .font(.subheadline.weight(.semibold))
+                        Text("\(result.confidenceBand.rawValue) confidence")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    case .rejected(let reason, _, _, _, _):
+                        Text(faceRejection(reason))
+                            .font(.footnote)
+                            .foregroundStyle(Color.orange)
+                    }
+                }
+
+                Button {
+                    Task { await toggleFaceSession() }
+                } label: {
+                    Label(
+                        faceCapture.state == .measuring ? "Stop" : "Try it",
+                        systemImage: faceCapture.state == .measuring ? "stop.fill" : "face.smiling"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private var faceGuidance: String {
+        if !faceCapture.faceVisible { return "Bring your face into view." }
+        if !faceCapture.wellLit { return "Find steadier, brighter light." }
+        return "Hold still and keep the light constant."
+    }
+
+    private func faceRejection(_ reason: FaceRppgRejectionReason) -> String {
+        switch reason {
+        case .tooShort: "This mode needs about forty seconds to say anything."
+        case .faceNotStable: "Your face needs to stay in view and still."
+        case .unstableLighting:
+            "The light changed during the session, which this method cannot separate from a pulse."
+        case .excessiveMotion: "There was too much movement."
+        case .noPeriodicity: "No steady rhythm came through."
+        case .unstable: "The reading kept drifting, so no single rate would be honest."
+        case .outOfRange: "The result was outside a plausible range, so it was discarded."
+        }
+    }
+
+    private func toggleFaceSession() async {
+        if faceCapture.state == .measuring {
+            let samples = faceCapture.samples
+            faceCapture.stop()
+            faceResult = FaceRppgEstimator.estimate(
+                samples, measuredAtMs: Date().timeIntervalSince1970 * 1000
+            )
+        } else {
+            faceResult = nil
+            await faceCapture.start()
         }
     }
 

@@ -301,6 +301,100 @@ final class PhysiologyGoldenTests: XCTestCase {
         }
     }
 
+    // MARK: - Face rPPG research mode
+
+    private struct FaceExpectation: Decodable {
+        let status: String
+        let reason: String?
+        let bpm: Double?
+        let durationMs: Double
+        let sampleCount: Int
+        let lumaSwing: Double
+        let confidence: Double?
+        let confidenceBand: String?
+        let quality: QualityVector
+    }
+
+    private struct FaceVector: Decodable {
+        let name: String
+        let measuredAtMs: Double
+        let samples: [[Double]]
+        let expected: FaceExpectation
+    }
+
+    private static let faceVectors = [
+        "changing-light",
+        "face-lost",
+        "no-pulsation",
+        "restless-head",
+        "session-too-short",
+        "slight-head-drift",
+        "too-dark",
+        "well-lit-70bpm",
+        "well-lit-96bpm",
+    ]
+
+    func testFaceRppgShipsDisabled() {
+        // Master specification §3.3: experimental only. The engine exists and is
+        // tested, but nothing turns it on by default.
+        XCTAssertFalse(PhysiologyTuning.faceRppgEnabled)
+    }
+
+    func testFaceRppgVectors() throws {
+        for name in Self.faceVectors {
+            let vector = try loadVector(FaceVector.self, named: name, in: "face-rppg")
+            let samples = vector.samples.map {
+                FaceRppgSample(
+                    timestampMs: $0[0], green: $0[1], luma: $0[2],
+                    faceArea: $0[3], faceCenterX: $0[4], faceCenterY: $0[5]
+                )
+            }
+            let actual = FaceRppgEstimator.estimate(samples, measuredAtMs: vector.measuredAtMs)
+
+            XCTAssertEqual(actual.statusName, vector.expected.status, name)
+            XCTAssertEqual(actual.sampleCount, vector.expected.sampleCount, name)
+            XCTAssertEqual(
+                actual.lumaSwing, vector.expected.lumaSwing, accuracy: tolerance, name
+            )
+            assertQuality(actual.quality, vector.expected.quality, name)
+
+            switch actual {
+            case .measured(let result):
+                XCTAssertEqual(
+                    result.bpm, try XCTUnwrap(vector.expected.bpm), accuracy: tolerance, name
+                )
+                XCTAssertEqual(
+                    result.confidenceBand.rawValue, vector.expected.confidenceBand, name
+                )
+                XCTAssertEqual(result.source, "face_camera_rppg", name)
+                XCTAssertEqual(result.kind, "app_estimated", name)
+                // The caveat is fixed on the type; no consumer can strip it.
+                XCTAssertTrue(result.experimental, name)
+            case .rejected(let reason, _, _, _, _):
+                XCTAssertEqual(reason.rawValue, vector.expected.reason, name)
+            }
+        }
+    }
+
+    func testFaceRppgRefusesChangingLight() throws {
+        // Slow illumination drift is exactly what rPPG mistakes for a pulse, and
+        // it is the failure the fingertip path avoids by lighting the finger.
+        let vector = try loadVector(FaceVector.self, named: "changing-light", in: "face-rppg")
+        XCTAssertEqual(vector.expected.status, "rejected")
+        XCTAssertEqual(vector.expected.reason, "unstableLighting")
+        XCTAssertGreaterThan(vector.expected.quality.periodicity, 0.6)
+    }
+
+    func testFaceRppgHoldsAStricterBarThanTheFingertip() {
+        // A weaker signal earns less benefit of the doubt, not more.
+        XCTAssertGreaterThan(
+            PhysiologyTuning.faceMinPeriodicity, PhysiologyTuning.pulseMinPeriodicity
+        )
+        XCTAssertGreaterThan(
+            PhysiologyTuning.faceMinStability, PhysiologyTuning.pulseMinStability
+        )
+    }
+
     // MARK: - Microphone breathing
 
     private struct AudioFrameVector: Decodable {

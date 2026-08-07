@@ -576,7 +576,9 @@ describe("face rPPG research mode", () => {
 
       if (actual.status === "measured" && expected.status === "measured") {
         expect(actual.bpm, vector.name).toBeCloseTo(expected.bpm, 6);
-        expect(actual.confidenceBand, vector.name).toBe(expected.confidenceBand);
+        expect(actual.confidenceBand, vector.name).toBe(
+          expected.confidenceBand,
+        );
         expect(actual.source).toBe("face_camera_rppg");
         expect(actual.kind).toBe("app_estimated");
         // The caveat is a literal on the type, so no consumer can strip it.
