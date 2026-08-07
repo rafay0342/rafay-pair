@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Entitlements for a personal-team install.
+
+      A free Apple ID cannot sign Push Notifications or App Attest — Apple
+      restricts both to the paid Developer Program — so a build for a personal
+      team declares neither. It is otherwise the same app.
+
+      What that costs, stated plainly rather than hidden: push notifications do
+      not arrive, and the server cannot verify the app's integrity for this
+      install. File protection is kept, because that one is free and protects
+      data at rest on the device.
+    -->
+    <key>com.apple.developer.default-data-protection</key>
+    <string>NSFileProtectionComplete</string>
+</dict>
+</plist>
