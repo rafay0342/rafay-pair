@@ -43,3 +43,27 @@ Design decisions worth recording:
 - **The Web pose model is provisioned, not committed.** The MediaPipe runtime and model are multi-megabyte binaries; `apps/web/public/models/README.md` documents fetching them at build time. When absent, the Move page says local pose is unavailable and stops — there is no server-side fallback path in the client, by design.
 
 No physiology, couple-realtime, or AI runtime feature is considered delivered before Gate 2 closes.
+
+## Gate 3 — Phone physiology
+
+Status: engines, capture, sharing, and surfaces implemented and validated locally on 2026-08-07. Not closed: closure inherits the same real-device evidence Gate 1 and Gate 2 are waiting on, and finger-camera pulse in particular cannot be validated on a simulator at all — it needs a real fingertip, a real torch, and a reference reading to compare against.
+
+Built with the same specification-first, golden-parity approach as the pose engines. Four normative specifications (`engines/signal-quality`, `engines/pulse-estimation-spec`, `engines/breathing-estimation-spec`, `engines/calorie-estimation-spec`) implemented three times independently: TypeScript (31 tests), Swift (33), Kotlin (13). Vectors live in `tests/golden/pulse`, `tests/golden/breathing`, and `tests/golden/calories`.
+
+- **Finger-camera pulse** on iOS (AVFoundation) and Android (CameraX), with the torch lit and exposure and white balance locked — automatic adjustment would chase the pulsation and suppress the signal being measured. Each frame is reduced to two channel means over a centred region and released; nothing is retained, encoded, or transmitted.
+- **Signal quality and confidence** are separate numbers by design: quality describes the signal, confidence describes the estimate. Both are reported, and a rejection carries its metrics so the interface can name the first thing the user can act on rather than only saying it failed.
+- **Consent-gated sharing** through `pulse_snapshots`: the owner grants, the partner reads, revocation blocks the read immediately, and the realtime path re-checks the same grant so a queued snapshot stops in flight.
+- **Guided breathing** is a deterministic schedule with no physiological claim, so it is identical on all three clients and two partners can follow the same rhythm without either device being authoritative.
+- **Estimated calories** appear in every workout summary with an explicit band and the list of inputs that produced them.
+- **Blood pressure** is stated as unsupported on every client. There is no table, no contract field, and no code path that computes one.
+
+Two algorithmic faults were found while validating the vectors and fixed in the algorithm rather than tuned around:
+
+- **Octave error.** Autocorrelation peaks just as strongly at whole multiples of the true period, so an unguarded maximum reported half the real rate — 124 BPM read as 62, 88 as 44, 14 breaths per minute as 7. A fabricated-but-plausible number is worse than no number. Subharmonic suppression compares the candidate at `lag / k` against the peak: a genuine subharmonic correlates comparably, a false one lands antiphase and correlates negatively.
+- **Filter not matched to the search band.** The breathing smoothing window was chosen for mild denoising rather than for the top of the band being searched, so ordinary fidgeting at 1.4 Hz survived it and won the correlation peak, producing a confident wrong rate. The window is now matched to the band, and both estimators additionally reject with `unstable` when per-window rates disagree — a rate that jumps between windows is not a rate.
+
+Deliberate omissions, recorded rather than left silent:
+
+- **Web finger-camera pulse is not implemented.** The measurement needs the rear lens with its torch lit and its exposure locked; browsers expose neither reliably. Shipping a browser version would mean a worse estimate under the same label, so the Web client says where the measurement lives instead. The master specification anticipates this: web pulse is separately qualified by device capability.
+- **Microphone breathing (master specification §6C) is not implemented.** It needs an audio capture path with its own retention rules, and the camera estimate already covers the same product need; adding microphone permission exposure for no user-visible gain was not justified in this gate.
+- **Face-camera rPPG (§3.3) is not implemented.** It is explicitly optional and experimental in the specification.

@@ -118,6 +118,17 @@ struct WorkoutView: View {
                     )
                     .foregroundStyle(.secondary)
                 }
+                if let calories = store.calories {
+                    Text(
+                        "Estimated \(Int(calories.estimatedKcal.rounded())) kcal "
+                            + "(\(Int(calories.lowKcal.rounded()))–\(Int(calories.highKcal.rounded())) kcal)"
+                    )
+                    Text(
+                        "A phone estimate with a \(calories.bandLabel.rawValue) band. Adding your weight in Settings would narrow it."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
                 Text("Sharing this with your partner is a separate choice in Sharing.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

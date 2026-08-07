@@ -96,6 +96,9 @@ importers:
       '@rafay-pair/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
+      '@rafay-pair/physiology-engine':
+        specifier: workspace:*
+        version: link:../../packages/physiology-engine
       '@rafay-pair/pose-engine':
         specifier: workspace:*
         version: link:../../packages/pose-engine

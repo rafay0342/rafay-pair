@@ -21,6 +21,7 @@
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",
     "@rafay-pair/api-contracts": "workspace:*",
+    "@rafay-pair/physiology-engine": "workspace:*",
     "@rafay-pair/pose-engine": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8",

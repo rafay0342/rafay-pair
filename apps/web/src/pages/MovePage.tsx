@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  estimateCalories,
+  type CalorieEstimate,
+} from "@rafay-pair/physiology-engine";
+import {
   ExerciseEngine,
   PoseEngine,
   type FormEvent,
@@ -42,6 +46,9 @@ export function MovePage(): React.JSX.Element {
   const [live, setLive] = useState<LiveState>(IDLE_STATE);
   const [recording, setRecording] = useState(false);
   const [summary, setSummary] = useState<SessionSummary | undefined>(undefined);
+  const [calories, setCalories] = useState<CalorieEstimate | undefined>(
+    undefined,
+  );
 
   const handleFrame = useCallback((frame: PoseFrame): void => {
     const observation = poseEngine.current.process(frame);
@@ -70,6 +77,7 @@ export function MovePage(): React.JSX.Element {
     exerciseEngine.current.reset();
     setLive(IDLE_STATE);
     setSummary(undefined);
+    setCalories(undefined);
     setRecording(true);
 
     const controller = new CameraPoseController({
@@ -84,7 +92,17 @@ export function MovePage(): React.JSX.Element {
     controllerRef.current?.stop();
     controllerRef.current = undefined;
     setRecording(false);
-    setSummary(exerciseEngine.current.summary());
+    const session = exerciseEngine.current.summary();
+    setSummary(session);
+    // Body mass is only supplied when the user has chosen to give it, and its
+    // absence widens the band rather than being guessed at.
+    setCalories(
+      estimateCalories({
+        activity: "squat",
+        durationMs: session.endedAtMs - session.startedAtMs,
+        repetitions: session.repetitionCount,
+      }),
+    );
   }, []);
 
   const guidance = useMemo(() => {
@@ -183,6 +201,18 @@ export function MovePage(): React.JSX.Element {
             <p>
               Best depth {Math.round(summary.bestDepth * 100)}% of a full squat.
             </p>
+          )}
+          {calories && (
+            <>
+              <p>
+                Estimated {Math.round(calories.estimatedKcal)} kcal (
+                {Math.round(calories.confidenceBand.lowKcal)}–
+                {Math.round(calories.confidenceBand.highKcal)} kcal)
+              </p>
+              <p className="form-hint">
+                A phone estimate with a {calories.confidenceBand.label} band.
+              </p>
+            </>
           )}
           <p>Sharing this with your partner is a separate choice in Consent.</p>
         </section>

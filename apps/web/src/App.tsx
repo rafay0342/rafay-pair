@@ -9,6 +9,7 @@ import { MovePage } from "./pages/MovePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PairPage } from "./pages/PairPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { VitalsPage } from "./pages/VitalsPage";
 import { Navigate, usePathname } from "./routing/Router";
 import { useAuth } from "./state/AuthContext";
 import { PairProvider } from "./state/PairContext";
@@ -49,6 +50,8 @@ function route(pathname: string): React.JSX.Element {
       return <CarePage />;
     case "/move":
       return <MovePage />;
+    case "/vitals":
+      return <VitalsPage />;
     case "/pair":
       return <PairPage />;
     case "/consent":

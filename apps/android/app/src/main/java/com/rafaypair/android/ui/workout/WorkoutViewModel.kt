@@ -7,6 +7,10 @@ import com.rafaypair.android.pose.PoseEngine
 import com.rafaypair.android.pose.PoseFrame
 import com.rafaypair.android.pose.ReportedPosture
 import com.rafaypair.android.pose.Repetition
+import com.rafaypair.android.physiology.CalorieActivity
+import com.rafaypair.android.physiology.CalorieEstimate
+import com.rafaypair.android.physiology.CalorieEstimateInput
+import com.rafaypair.android.physiology.CalorieEstimator
 import com.rafaypair.android.pose.SessionSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +25,7 @@ data class WorkoutUiState(
     val repetitionCount: Int = 0,
     val lastRepetition: Repetition? = null,
     val summary: SessionSummary? = null,
+    val calories: CalorieEstimate? = null,
 ) {
     val guidance: String
         get() = when {
@@ -68,7 +73,18 @@ class WorkoutViewModel : ViewModel() {
     fun endSession() {
         if (!_state.value.isRecording) return
         val summary = exerciseEngine.summary()
-        _state.update { it.copy(isRecording = false, summary = summary) }
+        // Body mass is only supplied when the user has chosen to give it, and
+        // its absence widens the band rather than being guessed at.
+        val calories = CalorieEstimator.estimate(
+            CalorieEstimateInput(
+                activity = CalorieActivity.SQUAT,
+                durationMs = summary.endedAtMs - summary.startedAtMs,
+                repetitions = summary.repetitionCount,
+            ),
+        )
+        _state.update {
+            it.copy(isRecording = false, summary = summary, calories = calories)
+        }
     }
 
     fun onFrame(frame: PoseFrame) {

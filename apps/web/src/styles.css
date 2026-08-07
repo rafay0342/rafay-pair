@@ -2466,3 +2466,49 @@ textarea::placeholder {
   font-size: 0.9rem;
   opacity: 0.85;
 }
+
+/* Guided breathing orb. The scale follows the phase, so the animation is driven
+   by the same deterministic schedule both partners see. */
+.breath-orb {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  margin: 0 auto;
+  background: radial-gradient(
+    circle at 50% 45%,
+    rgb(255 255 255 / 0.35),
+    transparent 65%
+  );
+  border: 2px solid currentColor;
+  transition: transform 120ms linear;
+  transform: scale(0.7);
+}
+
+.breath-orb[data-phase="inhale"] {
+  transform: scale(calc(0.7 + 0.3 * var(--breath-progress, 0)));
+}
+
+.breath-orb[data-phase="hold"] {
+  transform: scale(1);
+}
+
+.breath-orb[data-phase="exhale"] {
+  transform: scale(calc(1 - 0.3 * var(--breath-progress, 0)));
+}
+
+.breath-orb[data-phase="holdAfter"] {
+  transform: scale(0.7);
+}
+
+.breath-choices {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breath-orb {
+    transition: none;
+  }
+}

@@ -11,6 +11,7 @@ const navigation = [
   { to: "/", label: "Home", glyph: "⌂", end: true },
   { to: "/care", label: "Care", glyph: "♡" },
   { to: "/move", label: "Move", glyph: "△" },
+  { to: "/vitals", label: "Vitals", glyph: "♡" },
   { to: "/pair", label: "Pair", glyph: "↔" },
   { to: "/consent", label: "Consent", glyph: "✓" },
   { to: "/privacy", label: "Privacy", glyph: "◉" },

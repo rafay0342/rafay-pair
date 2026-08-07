@@ -14,6 +14,7 @@ final class WorkoutStore {
     private(set) var tracking = false
     private(set) var lastRepetition: Repetition?
     private(set) var summary: SessionSummary?
+    private(set) var calories: CalorieEstimate?
     private(set) var isRecording = false
 
     private var poseEngine = PoseEngine()
@@ -39,6 +40,7 @@ final class WorkoutStore {
         repetitionCount = 0
         lastRepetition = nil
         summary = nil
+        calories = nil
         tracking = false
         isRecording = true
     }
@@ -46,7 +48,19 @@ final class WorkoutStore {
     func endSession() {
         guard isRecording else { return }
         isRecording = false
-        summary = exerciseEngine.summary()
+        let session = exerciseEngine.summary()
+        summary = session
+        // Body mass is only supplied when the user has chosen to give it, and
+        // its absence widens the band rather than being guessed at.
+        calories = CalorieEstimator.estimate(
+            CalorieEstimateInput(
+                activity: .squat,
+                durationMs: session.endedAtMs - session.startedAtMs,
+                repetitions: session.repetitionCount,
+                bodyMassKg: nil,
+                poseConfidence: nil
+            )
+        )
     }
 
     func handle(frame: PoseFrame) {

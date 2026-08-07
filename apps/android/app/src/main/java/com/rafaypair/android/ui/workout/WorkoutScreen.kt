@@ -187,6 +187,19 @@ fun WorkoutScreen(viewModel: WorkoutViewModel = viewModel()) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    state.calories?.let { calories ->
+                        Text(
+                            "Estimated ${calories.estimatedKcal.roundToInt()} kcal " +
+                                "(${calories.lowKcal.roundToInt()}–" +
+                                "${calories.highKcal.roundToInt()} kcal)",
+                        )
+                        Text(
+                            "A phone estimate with a ${calories.bandLabel.wireName} band. " +
+                                "Adding your weight in Settings would narrow it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Text(
                         "Sharing this with your partner is a separate choice in Sharing.",
                         style = MaterialTheme.typography.bodySmall,
