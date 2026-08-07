@@ -13,14 +13,31 @@ name: rafaypair-prod
 # can find.
 
 services:
+  # Postgres speaks TLS even though it is only reachable from this compose
+  # network. The API refuses `sslmode=disable` in production by design, and
+  # that guard is worth more than the convenience of turning it off here: the
+  # deployment that eventually moves this database onto another host inherits
+  # a working TLS path instead of discovering it is missing.
   postgres:
     image: postgres:17.9-alpine
+    command:
+      [
+        "postgres",
+        "-c",
+        "ssl=on",
+        "-c",
+        "ssl_cert_file=/tls/server.crt",
+        "-c",
+        "ssl_key_file=/tls/server.key",
+      ]
     environment:
       POSTGRES_DB: rafay_pair
       POSTGRES_USER: rafay_pair
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ${TLS_DIR:-/opt/rafaypair/tls}/server.crt:/tls/server.crt:ro
+      - ${TLS_DIR:-/opt/rafaypair/tls}/server.key:/tls/server.key:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rafay_pair -d rafay_pair"]
       interval: 5s
@@ -64,8 +81,8 @@ services:
     command: ["node", "apps/api/dist/migrate.js"]
     env_file:
       - ./vps.env
-    environment:
-      DATABASE_CA_CERT_PATH: ""
+    volumes:
+      - ${TLS_DIR:-/opt/rafaypair/tls}/ca.crt:/app/certs/postgres-ca.pem:ro
     depends_on:
       postgres: { condition: service_healthy }
     read_only: true
@@ -82,8 +99,8 @@ services:
     image: rafaypair-api:vps
     env_file:
       - ./vps.env
-    environment:
-      DATABASE_CA_CERT_PATH: ""
+    volumes:
+      - ${TLS_DIR:-/opt/rafaypair/tls}/ca.crt:/app/certs/postgres-ca.pem:ro
     ports:
       - "127.0.0.1:${API_HOST_PORT:-3300}:3000"
     depends_on:
@@ -103,8 +120,8 @@ services:
     image: rafaypair-worker:vps
     env_file:
       - ./vps.env
-    environment:
-      DATABASE_CA_CERT_PATH: ""
+    volumes:
+      - ${TLS_DIR:-/opt/rafaypair/tls}/ca.crt:/app/certs/postgres-ca.pem:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
