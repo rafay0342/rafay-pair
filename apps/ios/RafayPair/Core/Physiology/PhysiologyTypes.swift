@@ -125,6 +125,54 @@ struct BreathingSample: Sendable {
     var tracked: Bool
 }
 
+/// Builds one breathing sample from pose landmarks.
+///
+/// `engines/breathing-estimation-spec/SPEC.md` §4 is normative. Dividing by
+/// torso scale makes the value invariant to distance from the camera: without
+/// it, walking towards the lens would read as an inhale.
+enum ChestSample {
+    /// Matched to the pose engine's own thresholds, so a frame the pose engine
+    /// would reject cannot enter the breathing estimator through a side door.
+    static let minimumTorsoScale = 0.08
+    static let minimumVisibility = 0.5
+
+    struct Point: Sendable {
+        var x: Double
+        var y: Double
+        var visibility: Double
+    }
+
+    static func from(
+        timestampMs: Double,
+        leftShoulder: Point,
+        rightShoulder: Point,
+        leftHip: Point,
+        rightHip: Point
+    ) -> BreathingSample {
+        let shoulderX = (leftShoulder.x + rightShoulder.x) / 2
+        let shoulderY = (leftShoulder.y + rightShoulder.y) / 2
+        let hipX = (leftHip.x + rightHip.x) / 2
+        let hipY = (leftHip.y + rightHip.y) / 2
+        let torsoScale = ((shoulderX - hipX) * (shoulderX - hipX) + (shoulderY - hipY) * (shoulderY - hipY))
+            .squareRoot()
+
+        let visibility = min(
+            min(leftShoulder.visibility, rightShoulder.visibility),
+            min(leftHip.visibility, rightHip.visibility)
+        )
+        let tracked = torsoScale >= minimumTorsoScale && visibility >= minimumVisibility
+
+        return BreathingSample(
+            timestampMs: timestampMs,
+            // A frame with no usable torso has no meaningful offset; zero is
+            // carried alongside `tracked: false` so the estimator drops it
+            // rather than interpolating across a gap it cannot see.
+            chestOffset: tracked ? shoulderY / torsoScale : 0,
+            tracked: tracked
+        )
+    }
+}
+
 enum BreathingRejectionReason: String, Sendable {
     case tooShort
     case notTracked

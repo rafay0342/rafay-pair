@@ -120,3 +120,32 @@ default.
 A breathing estimate is a derived summary and follows the same consent rule as
 pulse: it may reach a partner only under an active consent grant, and only as
 the summary. Landmark series and audio never leave the device.
+
+## 4. Producing `chestOffset` from pose landmarks
+
+The estimator's input is one scalar per frame, and this is how a client
+computes it. The definition lives here rather than in each client so that three
+independent implementations cannot drift.
+
+```text
+shoulderCentre = midpoint(leftShoulder, rightShoulder)
+hipCentre      = midpoint(leftHip, rightHip)
+torsoScale     = distance(hipCentre, shoulderCentre)
+
+chestOffset    = shoulderCentre.y / torsoScale
+tracked        = torsoScale >= MIN_TORSO_SCALE
+                 and min(visibility of those four joints) >= MIN_VISIBILITY
+```
+
+`MIN_TORSO_SCALE = 0.08` and `MIN_VISIBILITY = 0.5`, matching the pose engine so
+that a frame the pose engine would reject cannot become a breathing sample.
+
+Dividing by torso scale is what makes the value invariant to distance from the
+camera: a person who leans towards the lens produces a larger shoulder-centre
+height and a proportionally larger torso, and the ratio does not move. Without
+it, walking towards the camera would read as an inhale.
+
+The y axis points down in every landmark provider this product uses, so a rising
+chest _decreases_ `chestOffset`. The estimator is sign-agnostic — it looks for
+periodicity, not for a direction — so no client needs to flip it, and a client
+that did would still get the same rate.

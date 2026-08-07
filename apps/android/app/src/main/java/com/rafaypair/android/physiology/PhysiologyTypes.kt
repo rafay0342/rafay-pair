@@ -112,6 +112,55 @@ data class BreathingSample(
     val tracked: Boolean,
 )
 
+/**
+ * Builds one breathing sample from pose landmarks.
+ *
+ * `engines/breathing-estimation-spec/SPEC.md` §4 is normative. Dividing by torso
+ * scale makes the value invariant to distance from the camera: without it,
+ * walking towards the lens would read as an inhale.
+ */
+object ChestSample {
+    /**
+     * Matched to the pose engine's own thresholds, so a frame the pose engine
+     * would reject cannot enter the breathing estimator through a side door.
+     */
+    const val MIN_TORSO_SCALE = 0.08
+    const val MIN_VISIBILITY = 0.5
+
+    data class Point(val x: Double, val y: Double, val visibility: Double)
+
+    fun from(
+        timestampMs: Double,
+        leftShoulder: Point,
+        rightShoulder: Point,
+        leftHip: Point,
+        rightHip: Point,
+    ): BreathingSample {
+        val shoulderX = (leftShoulder.x + rightShoulder.x) / 2
+        val shoulderY = (leftShoulder.y + rightShoulder.y) / 2
+        val hipX = (leftHip.x + rightHip.x) / 2
+        val hipY = (leftHip.y + rightHip.y) / 2
+        val torsoScale = kotlin.math.hypot(shoulderX - hipX, shoulderY - hipY)
+
+        val visibility = minOf(
+            leftShoulder.visibility,
+            rightShoulder.visibility,
+            leftHip.visibility,
+            rightHip.visibility,
+        )
+        val tracked = torsoScale >= MIN_TORSO_SCALE && visibility >= MIN_VISIBILITY
+
+        return BreathingSample(
+            timestampMs = timestampMs,
+            // A frame with no usable torso has no meaningful offset; zero is
+            // carried alongside `tracked = false` so the estimator drops it
+            // rather than interpolating across a gap it cannot see.
+            chestOffset = if (tracked) shoulderY / torsoScale else 0.0,
+            tracked = tracked,
+        )
+    }
+}
+
 enum class BreathingRejectionReason(val wireName: String) {
     TOO_SHORT("tooShort"),
     NOT_TRACKED("notTracked"),

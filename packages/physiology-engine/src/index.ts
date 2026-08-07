@@ -5,10 +5,12 @@ export {
   BOX_PATTERN,
   CALM_PATTERN,
   RELAX_PATTERN,
+  chestSampleFromLandmarks,
   cycleDurationMs,
   estimateBreathing,
   phaseAt,
   totalDurationMs,
+  type ChestPoint,
 } from "./breathingEngine.js";
 export { estimateCalories } from "./calorieEngine.js";
 export {

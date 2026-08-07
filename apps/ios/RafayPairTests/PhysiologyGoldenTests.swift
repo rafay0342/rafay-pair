@@ -570,4 +570,32 @@ final class PhysiologyGoldenTests: XCTestCase {
         )
         XCTAssertEqual(PulseFreshness.ageMs(pulse, now: 999_000), 0)
     }
+    /// `engines/breathing-estimation-spec/SPEC.md` §4.
+    ///
+    /// The property that matters is invariance to distance from the camera:
+    /// without it, walking towards the lens would read as an inhale.
+    func testChestSampleIsInvariantToDistance() {
+        func landmarks(scale: Double, chestRise: Double) -> BreathingSample {
+            ChestSample.from(
+                timestampMs: 0,
+                leftShoulder: .init(x: -0.1 * scale, y: (1 - chestRise) * scale, visibility: 0.9),
+                rightShoulder: .init(x: 0.1 * scale, y: (1 - chestRise) * scale, visibility: 0.9),
+                leftHip: .init(x: -0.1 * scale, y: 2 * scale, visibility: 0.9),
+                rightHip: .init(x: 0.1 * scale, y: 2 * scale, visibility: 0.9)
+            )
+        }
+
+        let near = landmarks(scale: 1, chestRise: 0)
+        let far = landmarks(scale: 0.4, chestRise: 0)
+        XCTAssertTrue(near.tracked)
+        XCTAssertTrue(far.tracked)
+        XCTAssertEqual(near.chestOffset, far.chestOffset, accuracy: 1e-10)
+
+        let inhaled = landmarks(scale: 1, chestRise: 0.05)
+        XCTAssertNotEqual(inhaled.chestOffset, near.chestOffset, accuracy: 1e-6)
+
+        // A frame the pose engine would refuse cannot become a sample.
+        XCTAssertFalse(landmarks(scale: 0.02, chestRise: 0).tracked)
+    }
+
 }

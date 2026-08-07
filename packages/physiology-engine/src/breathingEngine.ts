@@ -155,6 +155,61 @@ const EMPTY_QUALITY: SignalQuality = {
 };
 
 /**
+ * Minimum torso scale and joint visibility for a frame to become a sample.
+ *
+ * Matched to the pose engine's own thresholds, so a frame the pose engine would
+ * reject cannot enter the breathing estimator through a side door.
+ */
+export const BREATHING_MIN_TORSO_SCALE = 0.08;
+export const BREATHING_MIN_VISIBILITY = 0.5;
+
+export interface ChestPoint {
+  readonly x: number;
+  readonly y: number;
+  readonly visibility: number;
+}
+
+/**
+ * Builds one breathing sample from pose landmarks.
+ *
+ * `engines/breathing-estimation-spec/SPEC.md` §4 is normative. Dividing by torso
+ * scale makes the value invariant to distance from the camera: without it,
+ * walking towards the lens would read as an inhale.
+ */
+export function chestSampleFromLandmarks(input: {
+  readonly timestampMs: number;
+  readonly leftShoulder: ChestPoint;
+  readonly rightShoulder: ChestPoint;
+  readonly leftHip: ChestPoint;
+  readonly rightHip: ChestPoint;
+}): BreathingSample {
+  const shoulderX = (input.leftShoulder.x + input.rightShoulder.x) / 2;
+  const shoulderY = (input.leftShoulder.y + input.rightShoulder.y) / 2;
+  const hipX = (input.leftHip.x + input.rightHip.x) / 2;
+  const hipY = (input.leftHip.y + input.rightHip.y) / 2;
+  const torsoScale = Math.hypot(shoulderX - hipX, shoulderY - hipY);
+
+  const visibility = Math.min(
+    input.leftShoulder.visibility,
+    input.rightShoulder.visibility,
+    input.leftHip.visibility,
+    input.rightHip.visibility,
+  );
+  const tracked =
+    torsoScale >= BREATHING_MIN_TORSO_SCALE &&
+    visibility >= BREATHING_MIN_VISIBILITY;
+
+  return {
+    timestampMs: input.timestampMs,
+    // A frame with no usable torso has no meaningful offset; zero is carried
+    // alongside `tracked: false` so the estimator drops it rather than
+    // interpolating across a gap it cannot see.
+    chestOffset: tracked ? shoulderY / torsoScale : 0,
+    tracked,
+  };
+}
+
+/**
  * Camera chest-motion estimate.
  *
  * The subject is already in frame for a pose session, so the shoulder-centre
