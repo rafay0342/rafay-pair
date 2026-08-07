@@ -52,6 +52,12 @@ targets:
     platform: iOS
     sources:
       - path: RafayPairTests
+      # The cross-platform engine parity vectors. Referenced as a folder so the
+      # repository stays the single source and the bundle mirrors its layout.
+      - path: ../../tests/golden
+        name: golden
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: RafayPair
     settings:

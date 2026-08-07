@@ -1,7 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 5173;
-const apiUrl = process.env.RAFAYPAIR_E2E_API_URL ?? "http://127.0.0.1:3000";
+// Ports are parameterized because a developer machine may already be using the
+// defaults for something else — an SSH tunnel on 3000 will answer a health
+// probe and silently convince Playwright the API is already running.
+const port = Number(process.env.RAFAYPAIR_E2E_WEB_PORT ?? 5173);
+const apiPort = Number(process.env.RAFAYPAIR_E2E_API_PORT ?? 3000);
+const workerHealthPort = Number(
+  process.env.RAFAYPAIR_E2E_WORKER_PORT ?? apiPort + 1,
+);
+const apiUrl =
+  process.env.RAFAYPAIR_E2E_API_URL ?? `http://127.0.0.1:${String(apiPort)}`;
 const deployedWebUrl = process.env.RAFAYPAIR_E2E_BASE_URL;
 const databaseUrl =
   process.env.DATABASE_URL ??
@@ -33,7 +41,7 @@ const localApiServer = {
     ...process.env,
     NODE_ENV: "test",
     API_HOST: "127.0.0.1",
-    API_PORT: "3000",
+    API_PORT: String(apiPort),
     ALLOWED_ORIGINS: `http://127.0.0.1:${String(port)}`,
     DATABASE_URL: databaseUrl,
     REDIS_URL: redisUrl,
@@ -48,7 +56,7 @@ const localApiServer = {
 const localWorkerServer = {
   command:
     "pnpm --filter @rafay-pair/api migrate && pnpm --filter @rafay-pair/worker dev",
-  url: "http://127.0.0.1:3001/health/ready",
+  url: `http://127.0.0.1:${String(workerHealthPort)}/health/ready`,
   reuseExistingServer: !process.env.CI,
   timeout: 120_000,
   cwd: "../..",
@@ -58,7 +66,7 @@ const localWorkerServer = {
     DATABASE_URL: databaseUrl,
     REDIS_URL: redisUrl,
     SESSION_PEPPER: sessionPepper,
-    WORKER_HEALTH_PORT: "3001",
+    WORKER_HEALTH_PORT: String(workerHealthPort),
     LOG_LEVEL: "warn",
   },
 };

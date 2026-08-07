@@ -67,3 +67,8 @@ override.tf.json
 artifacts/
 reports/
 
+
+# On-device pose model assets. These are multi-megabyte binaries provisioned at
+# build/deploy time (see apps/web/README.md), not committed to the repository.
+apps/web/public/models/*
+!apps/web/public/models/README.md

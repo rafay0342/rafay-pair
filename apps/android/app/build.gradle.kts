@@ -252,6 +252,15 @@ android {
         isCoreLibraryDesugaringEnabled = false
     }
 
+    sourceSets {
+        // The cross-platform engine parity vectors. Pointing at the repository
+        // directory keeps a single source of truth rather than a copy that can
+        // drift from the TypeScript and Swift suites.
+        getByName("test") {
+            resources.directories.add(rootProject.file("../../tests/golden").path)
+        }
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
@@ -377,6 +386,14 @@ ksp {
 }
 
 dependencies {
+    // On-device camera and pose inference. ML Kit runs the model locally; no
+    // frame or landmark is transmitted anywhere.
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.mlkit.pose.detection)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)

@@ -2447,3 +2447,22 @@ textarea::placeholder {
     border: 1px solid ButtonText;
   }
 }
+
+/* Local camera workout. The preview is presentation only; frames are analysed
+   in a worker and never leave the device. */
+.pose-preview {
+  width: 100%;
+  max-width: 30rem;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 1rem;
+  background: rgb(0 0 0 / 0.6);
+  /* Mirror the preview so movement reads naturally, exactly as a mirror would.
+     This is a display transform only; the engine is unaffected. */
+  transform: scaleX(-1);
+}
+
+.form-hint {
+  font-size: 0.9rem;
+  opacity: 0.85;
+}

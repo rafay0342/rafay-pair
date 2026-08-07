@@ -90,9 +90,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@mediapipe/tasks-vision':
+        specifier: 1.0.1
+        version: 1.0.1
       '@rafay-pair/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
+      '@rafay-pair/pose-engine':
+        specifier: workspace:*
+        version: link:../../packages/pose-engine
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -253,6 +259,21 @@ importers:
       vitest:
         specifier: 4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(terser@5.49.2)(tsx@4.23.9)(yaml@2.9.0))
+
+  packages/pose-engine:
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      tsx:
+        specifier: 4.23.9
+        version: 4.23.9
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@24.10.1)(jsdom@30.0.1)(vite@8.2.0(@types/node@24.10.1)(esbuild@0.28.1)(terser@5.49.2)(tsx@4.23.9)(yaml@2.9.0))
 
   services/notifications:
     dependencies:
@@ -1112,6 +1133,9 @@ packages:
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
+
+  '@mediapipe/tasks-vision@1.0.1':
+    resolution: {integrity: sha512-rvRE2FmAZ6ZxKSw7wq+e+jQDpN3t1B/tD2mJz9SmAzb1msoDkd4dMoE4wAh8Z30Um0PQwLiHr9QtomhmXk3aUQ==}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -4694,6 +4718,8 @@ snapshots:
   '@js-sdsl/ordered-map@4.4.2': {}
 
   '@lukeed/ms@2.0.2': {}
+
+  '@mediapipe/tasks-vision@1.0.1': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true

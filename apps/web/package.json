@@ -19,7 +19,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.0.1",
     "@rafay-pair/api-contracts": "workspace:*",
+    "@rafay-pair/pose-engine": "workspace:*",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "workbox-window": "7.4.1"

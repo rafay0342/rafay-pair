@@ -12,3 +12,7 @@ infra/terraform/.terraform/
 infra/terraform/.terraform.lock.hcl
 pnpm-lock.yaml
 packages/design-tokens/assets/
+
+# Generated cross-platform parity vectors. Prettier's formatting differs from
+# the generator's, which would make every regeneration produce a spurious diff.
+tests/golden/

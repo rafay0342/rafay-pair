@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -122,6 +123,7 @@ import com.rafaypair.android.domain.model.PairStatus
 import com.rafaypair.android.domain.model.RealtimeState
 import com.rafaypair.android.domain.model.SessionState
 import com.rafaypair.android.domain.model.User
+import com.rafaypair.android.ui.workout.WorkoutScreen
 import com.rafaypair.android.ui.theme.Coral500
 import com.rafaypair.android.ui.theme.Mint400
 import java.time.ZoneId
@@ -371,6 +373,7 @@ private fun SignedInScreen(
             Crossfade(state.selectedTab, label = "tab", modifier = Modifier.weight(1f)) { tab ->
                 when (tab) {
                     AppTab.HOME -> HomeScreen(user, state, viewModel, { confirmDisconnect = true })
+                    AppTab.MOVE -> WorkoutScreen()
                     AppTab.CARE -> CareScreen(state, viewModel)
                     AppTab.CONSENT -> ConsentScreen(state, viewModel)
                     AppTab.ACCOUNT -> AccountScreen(user, state, viewModel)
@@ -401,6 +404,7 @@ private fun SignedInScreen(
 private fun AppNavigationBar(selected: AppTab, onSelect: (AppTab) -> Unit) {
     NavigationBar(modifier = Modifier.navigationBarsPadding()) {
         NavigationItem(AppTab.HOME, "Home", Icons.Default.Home, selected, onSelect)
+        NavigationItem(AppTab.MOVE, "Move", Icons.AutoMirrored.Filled.DirectionsRun, selected, onSelect)
         NavigationItem(AppTab.CARE, "Care", Icons.Default.Favorite, selected, onSelect)
         NavigationItem(AppTab.CONSENT, "Consent", Icons.Default.Security, selected, onSelect)
         NavigationItem(AppTab.ACCOUNT, "Account", Icons.Default.AccountCircle, selected, onSelect)

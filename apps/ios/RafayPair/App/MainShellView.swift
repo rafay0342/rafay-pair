@@ -63,6 +63,11 @@ struct MainShellView: View {
             .tabItem { Label("Sharing", systemImage: "hand.raised.fill") }
 
             NavigationStack {
+                WorkoutView()
+            }
+            .tabItem { Label("Move", systemImage: "figure.strengthtraining.functional") }
+
+            NavigationStack {
                 SettingsView(
                     user: user,
                     sessionStore: sessionStore,

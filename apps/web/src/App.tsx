@@ -5,6 +5,7 @@ import { CapabilitiesPage } from "./pages/CapabilitiesPage";
 import { CarePage } from "./pages/CarePage";
 import { ConsentPage } from "./pages/ConsentPage";
 import { HomePage } from "./pages/HomePage";
+import { MovePage } from "./pages/MovePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PairPage } from "./pages/PairPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -46,6 +47,8 @@ function route(pathname: string): React.JSX.Element {
       return <HomePage />;
     case "/care":
       return <CarePage />;
+    case "/move":
+      return <MovePage />;
     case "/pair":
       return <PairPage />;
     case "/consent":

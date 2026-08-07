@@ -19,6 +19,8 @@ espresso = "3.7.0"
 orchestrator = "1.6.1"
 firebase-bom = "34.16.0"
 play-integrity = "1.6.0"
+camerax = "1.6.1"
+mlkit-pose = "18.0.0-beta5"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core" }
@@ -53,6 +55,11 @@ androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-mani
 androidx-test-orchestrator = { module = "androidx.test:orchestrator", version.ref = "orchestrator" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+mlkit-pose-detection = { module = "com.google.mlkit:pose-detection", version.ref = "mlkit-pose" }
 play-integrity = { module = "com.google.android.play:integrity", version.ref = "play-integrity" }
 
 [plugins]

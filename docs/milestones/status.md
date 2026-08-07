@@ -18,6 +18,28 @@ Notable fixes made during Gate 1 validation:
 - Realtime/notification consent enforcement compared `consent_grants.updated_at` (database clock) with an event `occurred_at` written from the API process clock; sub-second clock skew between the two machines denied freshly consented events. `occurred_at` now comes from the database `now()` in the same transaction.
 - Integration tests previously hard-coded a Unix-socket PostgreSQL connection; they now honor `DATABASE_URL`/`REDIS_URL` exactly as CI provides them.
 - `pnpm deploy --legacy` left workspace packages as symlinks into the discarded Docker build stage; the API and worker images now deploy with `node-linker=hoisted`.
-- On this development machine the compose PostgreSQL/Redis publish on 127.0.0.1:55432/56379 (see `infra/compose/.env`) because a host PostgreSQL and an SSH tunnel occupy the default ports.
+- On this development machine the compose PostgreSQL/Redis publish on 127.0.0.1:55432/56379 (see `infra/compose/.env`) because a host PostgreSQL and an SSH tunnel occupy the default ports. The Playwright stack has the same hazard on port 3000, where a tunnel answers the health probe convincingly enough that Playwright skips starting the real API; its ports are now parameterized through `RAFAYPAIR_E2E_API_PORT`, `RAFAYPAIR_E2E_WEB_PORT`, and `RAFAYPAIR_E2E_WORKER_PORT`.
 
-No pose, physiology, couple-workout, or AI runtime feature is considered delivered before Gate 1 closes. Gate 1 closure additionally requires a real-device iOS install (Apple team identity) and a CI-produced release bundle for Android.
+Gate 1 closure additionally requires a real-device iOS install (Apple team identity) and a CI-produced release bundle for Android. Both need credentials that are not held in this repository.
+
+## Gate 2 — Camera intelligence
+
+Status: engines and camera pipelines implemented and validated locally on 2026-08-07. Not closed: closure requires the same real-device evidence Gate 1 is waiting on, plus a provisioned Web pose model asset.
+
+The specification requires camera pose on all three clients with **golden test parity**, which shapes the design: pose _inference_ is platform-specific and cannot be made reproducible, so the parity contract begins at the landmarks. Everything downstream — canonical skeleton, normalization, smoothing, geometry, posture classification, and the exercise state machine — is specified normatively in `engines/pose-spec/SPEC.md` and `engines/exercise-state-machines/SPEC.md` and implemented three times, independently, with no shared code.
+
+- Parity vectors: `tests/golden/pose` (8 static posture cases) and `tests/golden/exercise` (8 scenarios, ~1,900 frames) are generated from a parametric, anthropometrically proportioned skeleton so ground truth is exact. Discrete outputs are asserted exactly; continuous values within `1e-6`, because `atan2` is not guaranteed bit-identical across C libraries.
+- TypeScript (`packages/pose-engine`, also the Web engine): 21 tests pass.
+- Swift (`apps/ios/RafayPair/Core/Pose`): 27 unit tests pass, including the full parity suite read from the same JSON files.
+- Kotlin (`apps/android/.../pose`): 7 parity tests pass, reading the same JSON files as test resources.
+- Camera capture, on-device only: iOS uses Vision (`PoseCaptureSession`), Android uses CameraX with ML Kit (`PoseCaptureController`), Web uses `getUserMedia` into a Web Worker running MediaPipe Tasks Vision (`CameraPoseController`). Each is a single auditable boundary: the frame buffer is scored and released, never retained, encoded, stored, or transmitted.
+- Local workout surfaces exist on all three clients (a "Move" destination) reporting sit, stand, lie-down, squat, and repetition count with form hints, and stating plainly that nothing is shared without a separate consent choice.
+
+Design decisions worth recording:
+
+- **Sitting versus a squat bottom is not decidable from one frame.** The skeletons are near identical. The static classifier therefore reports `crouched` for both, and the state machine separates them temporally: sitting requires a stable hip height held for 2.5 s, while a squat is an excursion from standing and back. Committing to sitting or lying cancels any repetition in flight, so standing up from a chair never counts as a squat.
+- **The stability window is trailing, not whole-run.** A crouched run necessarily begins part-way through the descent, so measuring spread over the entire run would keep it permanently outside the band and a genuinely seated subject would never settle.
+- **The engine is invariant to mirroring and to left/right labelling.** Vision, ML Kit, and BlazePose do not document laterality identically. Rather than guess per platform, every derived quantity is a midpoint, a mean, or an unsigned angle, so the question does not arise. This removed the per-platform mirroring code that would otherwise have been an untested source of divergence.
+- **The Web pose model is provisioned, not committed.** The MediaPipe runtime and model are multi-megabyte binaries; `apps/web/public/models/README.md` documents fetching them at build time. When absent, the Move page says local pose is unavailable and stops — there is no server-side fallback path in the client, by design.
+
+No physiology, couple-realtime, or AI runtime feature is considered delivered before Gate 2 closes.

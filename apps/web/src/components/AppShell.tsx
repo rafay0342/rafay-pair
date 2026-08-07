@@ -10,6 +10,7 @@ import { PwaManager } from "./PwaManager";
 const navigation = [
   { to: "/", label: "Home", glyph: "⌂", end: true },
   { to: "/care", label: "Care", glyph: "♡" },
+  { to: "/move", label: "Move", glyph: "△" },
   { to: "/pair", label: "Pair", glyph: "↔" },
   { to: "/consent", label: "Consent", glyph: "✓" },
   { to: "/privacy", label: "Privacy", glyph: "◉" },

@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class AuthMode { LOGIN, REGISTER }
-enum class AppTab { HOME, CARE, CONSENT, ACCOUNT }
+enum class AppTab { HOME, MOVE, CARE, CONSENT, ACCOUNT }
 
 data class AuthForm(
     val mode: AuthMode = AuthMode.LOGIN,
