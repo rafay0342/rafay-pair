@@ -137,14 +137,14 @@ jobs:
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
       - name: Scan API image digest
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: ${{ vars.ECR_API_REPOSITORY }}@${{ steps.api_build.outputs.digest }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
       - name: Scan worker image digest
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: ${{ vars.ECR_WORKER_REPOSITORY }}@${{ steps.worker_build.outputs.digest }}
           severity: HIGH,CRITICAL
