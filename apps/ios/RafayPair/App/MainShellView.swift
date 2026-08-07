@@ -75,7 +75,8 @@ struct MainShellView: View {
             NavigationStack {
                 VitalsView(
                     bloodPressure: bloodPressure,
-                    cameraBreathingOffered: experiments.isEnabled(.cameraBreathingEstimate)
+                    cameraBreathingOffered: experiments.isEnabled(.cameraBreathingEstimate),
+                    veinsAliveOffered: experiments.isEnabled(.livingBodyAdvanced)
                 )
             }
             .tabItem { Label("Vitals", systemImage: "heart.text.square.fill") }

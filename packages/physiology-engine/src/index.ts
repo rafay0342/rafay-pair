@@ -19,4 +19,12 @@ export {
   isHopUsable,
 } from "./audioBreathingEngine.js";
 export { estimateFaceRppg } from "./faceRppgEngine.js";
+export {
+  VEINS_DISCLOSURE,
+  veinsDrivers,
+  type MuscleGroup,
+  type VeinsDrivers,
+  type VeinsInput,
+  type VeinsMode,
+} from "./veinsAlive.js";
 export { isPulseFresh, pulseAgeMs } from "./freshness.js";

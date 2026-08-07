@@ -10,6 +10,7 @@ import {
 } from "@rafay-pair/physiology-engine";
 
 import { BloodPressureCard } from "../components/BloodPressureCard";
+import { VeinsAlive } from "../components/VeinsAlive";
 
 /**
  * Guided breathing, the living heart, and blood pressure the user brings.
@@ -131,6 +132,17 @@ export function VitalsPage(): React.JSX.Element {
           appears for your partner there.
         </p>
       </section>
+
+      {/* Master specification §8. The Web client has no pulse estimate of its
+          own, so this always rests here — which is exactly the honest state
+          rather than a reason to hide the feature. */}
+      <VeinsAlive
+        pulseBpm={null}
+        breathingPhase={phase?.phase ?? null}
+        breathingProgress={phase?.progress ?? 0}
+        repetitionsPerMinute={null}
+        activeMuscles={[]}
+      />
 
       <BloodPressureCard />
     </div>

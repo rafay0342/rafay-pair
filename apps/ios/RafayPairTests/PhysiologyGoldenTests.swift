@@ -598,4 +598,49 @@ final class PhysiologyGoldenTests: XCTestCase {
         XCTAssertFalse(landmarks(scale: 0.02, chestRise: 0).tracked)
     }
 
+    // MARK: - Veins Alive (master specification §8)
+
+    func testVeinsRestsRatherThanInventingARate() {
+        // A vascular network pulsing at a plausible 72 would be a fabricated
+        // measurement wearing an animation's clothes.
+        let resting = VeinsAlive.drivers(for: VeinsInput())
+        XCTAssertNil(resting.contractionPeriodMs)
+        XCTAssertEqual(resting.pulseProvenance, .none)
+
+        let driven = VeinsAlive.drivers(for: VeinsInput(pulseBpm: 60))
+        XCTAssertEqual(try XCTUnwrap(driven.contractionPeriodMs), 1000, accuracy: 1e-9)
+        XCTAssertEqual(driven.pulseProvenance, .estimated)
+    }
+
+    func testVeinsRefusesAnImplausibleRateInsteadOfClampingIt() {
+        for bpm in [0.0, 20, 41, 211, 400, Double.nan, .infinity] {
+            let result = VeinsAlive.drivers(for: VeinsInput(pulseBpm: bpm))
+            XCTAssertNil(result.contractionPeriodMs, "\(bpm)")
+            XCTAssertEqual(result.pulseProvenance, .none, "\(bpm)")
+        }
+    }
+
+    func testVeinsGlowsWithTheBreathAndNotOtherwise() {
+        func glow(_ phase: BreathingPhase?, _ progress: Double) -> Double {
+            VeinsAlive.drivers(
+                for: VeinsInput(breathingPhase: phase, breathingProgress: progress)
+            ).chestGlow
+        }
+        XCTAssertEqual(glow(.inhale, 0), 0, accuracy: 1e-9)
+        XCTAssertEqual(glow(.inhale, 1), 1, accuracy: 1e-9)
+        XCTAssertEqual(glow(.hold, 0.5), 1, accuracy: 1e-9)
+        XCTAssertEqual(glow(.exhale, 1), 0, accuracy: 1e-9)
+        XCTAssertEqual(glow(nil, 0.5), 0, accuracy: 1e-9)
+    }
+
+    func testVeinsKeepsIntensityInRangeAndCarriesTheDisclosure() {
+        XCTAssertEqual(VeinsAlive.drivers(for: VeinsInput()).intensity, 0.15, accuracy: 1e-9)
+        let flatOut = VeinsAlive.drivers(
+            for: VeinsInput(mode: .workout, repetitionsPerMinute: 500)
+        )
+        XCTAssertLessThanOrEqual(flatOut.intensity, 1)
+        XCTAssertGreaterThan(flatOut.intensity, 0.9)
+        XCTAssertTrue(VeinsAlive.disclosure.contains("not a medical scan"))
+    }
+
 }

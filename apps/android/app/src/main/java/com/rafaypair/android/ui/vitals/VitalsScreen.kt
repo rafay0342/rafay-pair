@@ -70,6 +70,11 @@ import kotlinx.coroutines.delay
 @Composable
 fun VitalsScreen(
     cameraBreathingOffered: Boolean,
+    /**
+     * Master specification §8, behind `living_body_advanced`. Absent when the
+     * experiment is off — there is no placeholder and no locked card.
+     */
+    veinsAliveOffered: Boolean,
     bloodPressureViewModel: BloodPressureViewModel,
     viewModel: VitalsViewModel = viewModel(
         factory = VitalsViewModel.Factory(cameraBreathingOffered),
@@ -196,6 +201,15 @@ fun VitalsScreen(
         // off this surface does not exist and nothing else references the engine.
         if (PhysiologyTuning.FACE_RPPG_ENABLED) {
             FaceRppgCard(context = context, lifecycleOwner = lifecycleOwner)
+        }
+        if (veinsAliveOffered) {
+            VeinsAliveCard(
+                pulseBpm = state.animatedBpm,
+                breathingPhase = state.breathingPhase?.phase,
+                breathingProgress = state.breathingPhase?.progress ?: 0.0,
+                repetitionsPerMinute = null,
+                activeMuscles = emptyList(),
+            )
         }
         BloodPressureCard(bloodPressureViewModel)
     }

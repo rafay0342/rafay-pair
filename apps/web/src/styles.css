@@ -2558,3 +2558,14 @@ textarea::placeholder {
   font-style: italic;
   opacity: 0.7;
 }
+
+/* Veins Alive draws with `currentColor` so it follows the theme rather than
+   carrying its own palette, and it never grows past its column. */
+.veins-canvas {
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  color: var(--brand-plum, #7b3f6f);
+  display: block;
+  margin: 0 auto;
+}

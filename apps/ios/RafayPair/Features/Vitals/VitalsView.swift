@@ -7,6 +7,9 @@ import SwiftUI
 struct VitalsView: View {
     let bloodPressure: any BloodPressureRepository
     let cameraBreathingOffered: Bool
+    /// Master specification §8, behind `living_body_advanced`. Absent when the
+    /// experiment is off — there is no placeholder and no locked card.
+    let veinsAliveOffered: Bool
 
     @State private var store = VitalsStore()
     @State private var capture = PulseCaptureSession()
@@ -30,6 +33,15 @@ struct VitalsView: View {
                 // references the engine.
                 if PhysiologyTuning.faceRppgEnabled {
                     faceRppgCard
+                }
+                if veinsAliveOffered {
+                    VeinsAliveView(
+                        pulseBpm: store.animatedBpm,
+                        breathingPhase: store.breathingPhase?.phase,
+                        breathingProgress: store.breathingPhase?.progress ?? 0,
+                        repetitionsPerMinute: nil,
+                        activeMuscles: []
+                    )
                 }
                 BloodPressureView(repository: bloodPressure)
             }

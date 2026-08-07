@@ -391,6 +391,11 @@ private fun SignedInScreen(
                         ).container.experimentFlags.isEnabled(
                             ExperimentFlag.CAMERA_BREATHING_ESTIMATE,
                         ),
+                        veinsAliveOffered = (
+                            LocalContext.current.applicationContext as RafayPairApplication
+                        ).container.experimentFlags.isEnabled(
+                            ExperimentFlag.LIVING_BODY_ADVANCED,
+                        ),
                         bloodPressureViewModel = viewModel(
                             factory = BloodPressureViewModel.Factory(
                                 (LocalContext.current.applicationContext as RafayPairApplication)
