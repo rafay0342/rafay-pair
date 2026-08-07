@@ -11,6 +11,7 @@ import type { Pool } from "pg";
 import { SpanStatusCode, trace, type Span } from "@opentelemetry/api";
 
 import {
+  aiVoiceApplicationProtocol,
   realtimeApplicationProtocol,
   realtimeTicketProtocolPrefix,
   realtimeTicketSchema,
@@ -172,13 +173,19 @@ export async function buildApi(
     options: {
       maxPayload: 16 * 1_024,
       perMessageDeflate: false,
+      /**
+       * Both sockets carry an application protocol plus exactly one ticket
+       * protocol. The two application protocols are distinct so a ticket for
+       * one can never open the other, and the negotiated value is echoed back
+       * so a compliant client's handshake completes.
+       */
       handleProtocols(protocols: Set<string>) {
-        if (
-          protocols.size !== 2 ||
-          !protocols.has(realtimeApplicationProtocol)
-        ) {
-          return false;
-        }
+        const application = [
+          realtimeApplicationProtocol,
+          aiVoiceApplicationProtocol,
+        ].find((candidate) => protocols.has(candidate));
+        if (protocols.size !== 2 || application === undefined) return false;
+
         const ticketProtocols = [...protocols].filter((protocol) =>
           protocol.startsWith(realtimeTicketProtocolPrefix),
         );
@@ -191,7 +198,7 @@ export async function buildApi(
         ) {
           return false;
         }
-        return realtimeApplicationProtocol;
+        return application;
       },
     },
   });

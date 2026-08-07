@@ -106,6 +106,7 @@ export async function registerAiVoiceRoutes(
     }
     const ticket = realtimeTicketFromProtocolHeader(
       request.headers["sec-websocket-protocol"],
+      aiVoiceApplicationProtocol,
     );
     if (!ticket || socket.protocol !== aiVoiceApplicationProtocol) {
       closeWith(1008, "valid voice protocols required");

@@ -487,8 +487,17 @@ export async function registerRealtimeRoutes(
   });
 }
 
+/**
+ * Reads the single-use ticket out of the offered subprotocols.
+ *
+ * The application protocol is a parameter rather than a constant because the
+ * realtime event socket and the AI voice socket deliberately use different
+ * ones: a ticket offered alongside the wrong application protocol must not
+ * parse, or a ticket for one socket could open the other.
+ */
 export function realtimeTicketFromProtocolHeader(
   header: string | string[] | undefined,
+  applicationProtocol: string = realtimeApplicationProtocol,
 ): string | null {
   if (typeof header !== "string") return null;
   const offered = header
@@ -498,7 +507,7 @@ export function realtimeTicketFromProtocolHeader(
   if (
     offered.length !== 2 ||
     new Set(offered).size !== 2 ||
-    !offered.includes(realtimeApplicationProtocol)
+    !offered.includes(applicationProtocol)
   ) {
     return null;
   }

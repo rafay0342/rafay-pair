@@ -151,6 +151,7 @@ const realtimeStateRedis = createRedisClient(config.redisUrl);
 let app: Awaited<ReturnType<typeof buildApi>>;
 let registrationAddress = 10;
 let realtimeSocketUrl: string;
+let aiVoiceSocketUrl: string;
 
 beforeAll(async () => {
   await ensureTestExtensions();
@@ -176,6 +177,7 @@ beforeAll(async () => {
   await app.ready();
   const address = await app.listen({ host: "127.0.0.1", port: 0 });
   realtimeSocketUrl = `${address.replace(/^http/u, "ws")}/v1/realtime`;
+  aiVoiceSocketUrl = `${address.replace(/^http/u, "ws")}/v1/ai/voice`;
 });
 
 afterAll(async () => {
@@ -1515,6 +1517,80 @@ describe("Milestone 1 API", () => {
       payload: { callId: "call-late", name: "get_latest_pulse", arguments: {} },
     });
     expect(afterEnd.statusCode).toBe(404);
+  });
+
+  it("negotiates the voice subprotocol and reaches the provider boundary", async () => {
+    const address = "198.51.100.9";
+    const user = await registerNative(
+      "voice-handshake@example.test",
+      "Voice Handshake",
+    );
+    const started = await app.inject({
+      method: "POST",
+      remoteAddress: address,
+      url: "/v1/ai/sessions",
+      headers: nativeHeaders(user.accessToken),
+    });
+    const session = started.json().session as { id: string };
+
+    const client = await pool.connect();
+    let ticket: string;
+    try {
+      // The route that mints a ticket is refused without a provider, which is
+      // correct and is covered elsewhere. What this test is about is the
+      // handshake, so the ticket is minted directly.
+      await app.inject({
+        method: "POST",
+        remoteAddress: address,
+        url: `/v1/ai/sessions/${session.id}/identity-announced`,
+        headers: nativeHeaders(user.accessToken),
+      });
+      const issued = await issueVoiceTicket(client, session.id, user.userId);
+      expect(issued).not.toBeNull();
+      if (!issued) return;
+      ticket = issued.ticket;
+    } finally {
+      client.release();
+    }
+
+    const socket = new WebSocket(aiVoiceSocketUrl, [
+      "rafaypair.voice.v1",
+      `rafaypair.ticket.${ticket}`,
+    ]);
+    const closure = await new Promise<{ code: number; reason: string }>(
+      (resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error("voice socket never settled")),
+          10_000,
+        );
+        socket.addEventListener(
+          "close",
+          (event) => {
+            clearTimeout(timer);
+            resolve({ code: event.code, reason: event.reason });
+          },
+          { once: true },
+        );
+        socket.addEventListener(
+          "error",
+          () => {
+            clearTimeout(timer);
+            reject(new Error("voice socket handshake failed"));
+          },
+          { once: true },
+        );
+      },
+    );
+
+    // No provider is configured in tests, so the far end is unreachable — and
+    // that is exactly the point. Reaching "provider unavailable" proves the
+    // handshake negotiated the voice subprotocol, the ticket parsed against it,
+    // and the session was admitted. It previously failed one step earlier, with
+    // "valid voice protocols required", because the offer was being parsed with
+    // the realtime application protocol; no compliant client could connect.
+    expect(socket.protocol).toBe("rafaypair.voice.v1");
+    expect(closure.reason).toBe("voice provider unavailable");
+    expect(closure.code).toBe(1013);
   });
 
   it("closes every partner surface when the pair is disconnected, not only care", async () => {
