@@ -25,6 +25,13 @@ const controlEventTypes = new Set<RealtimeEventEnvelope["type"]>([
   "privacy.paused",
   "privacy.resumed",
   "pair.disconnected",
+  // Session lifecycle, not session content. These must reach a partner even
+  // after consent changes; a control that consent can block is not a control,
+  // and a revocation would otherwise leave a session open with no way to close
+  // it. The content event, together.state.updated, remains consent-gated.
+  "together.session.accepted",
+  "together.session.declined",
+  "together.session.ended",
 ]);
 
 interface RealtimeRow {

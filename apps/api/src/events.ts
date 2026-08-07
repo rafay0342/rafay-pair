@@ -15,8 +15,13 @@ export async function appendRealtimeOutboxEvent(
       | "privacy.paused"
       | "privacy.resumed"
       | "pair.disconnected"
-      | "pulse.snapshot.shared";
-    aggregateType: "pair" | "care_request" | "privacy" | "pulse";
+      | "pulse.snapshot.shared"
+      | "together.session.invited"
+      | "together.session.accepted"
+      | "together.session.declined"
+      | "together.session.ended"
+      | "together.state.updated";
+    aggregateType: "pair" | "care_request" | "privacy" | "pulse" | "together";
     aggregateId: string;
     pairId: string;
     actorUserId: string;

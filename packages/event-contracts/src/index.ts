@@ -10,6 +10,11 @@ export const domainEventTypeSchema = z.enum([
   "privacy.resumed",
   "pair.disconnected",
   "pulse.snapshot.shared",
+  "together.session.invited",
+  "together.session.accepted",
+  "together.session.declined",
+  "together.session.ended",
+  "together.state.updated",
 ]);
 
 export const domainEventSchema = z.object({
@@ -22,6 +27,7 @@ export const domainEventSchema = z.object({
     "consent",
     "privacy",
     "pulse",
+    "together",
   ]),
   aggregateId: z.string().uuid(),
   pairId: z.string().uuid(),
@@ -35,7 +41,7 @@ export type DomainEventType = z.infer<typeof domainEventTypeSchema>;
 export type DomainEvent = z.infer<typeof domainEventSchema>;
 
 export interface DirectionalConsentRequirement {
-  readonly capability: "care_requests" | "pulse_snapshots";
+  readonly capability: "care_requests" | "pulse_snapshots" | "workout_progress";
   readonly grantorUserId: string;
   readonly granteeUserId: string;
 }
@@ -50,6 +56,27 @@ export function directionalConsentForEvent(input: {
   readonly actorUserId: string;
   readonly recipientUserId?: string;
 }): DirectionalConsentRequirement | null {
+  if (input.type === "together.session.invited") {
+    // The invitee is the grantor: they decide whether their partner may propose
+    // a shared session, exactly as with a care request.
+    if (!input.recipientUserId) return null;
+    return {
+      capability: "workout_progress",
+      grantorUserId: input.recipientUserId,
+      granteeUserId: input.actorUserId,
+    };
+  }
+  if (input.type === "together.state.updated") {
+    // The publisher is the grantor: they decide whether their partner may see
+    // their workout progress. Delivery re-checks this, so revoking consent stops
+    // an already-queued state update from arriving.
+    if (!input.recipientUserId) return null;
+    return {
+      capability: "workout_progress",
+      grantorUserId: input.actorUserId,
+      granteeUserId: input.recipientUserId,
+    };
+  }
   if (input.type === "pulse.snapshot.shared") {
     // The owner of the reading is the grantor: they decide whether their
     // partner may see it. Delivery re-checks this, so revoking consent stops an

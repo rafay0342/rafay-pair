@@ -31,6 +31,7 @@ import {
   type PlayIntegrityVerifier,
 } from "./play-integrity.js";
 import { createRedisRateLimitStore } from "./redis-rate-limit-store.js";
+import { registerAiRoutes } from "./routes/ai-routes.js";
 import { registerAndroidIntegrityRoutes } from "./routes/android-integrity-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerCareRoutes } from "./routes/care-routes.js";
@@ -39,6 +40,7 @@ import { registerNotificationDeviceRoutes } from "./routes/notification-device-r
 import { registerPairRoutes } from "./routes/pair-routes.js";
 import { registerPrivacyRoutes } from "./routes/privacy-routes.js";
 import { registerPulseRoutes } from "./routes/pulse-routes.js";
+import { registerTogetherRoutes } from "./routes/together-routes.js";
 import { registerRealtimeRoutes } from "./routes/realtime-routes.js";
 import { registerIosIntegrityRoutes } from "./routes/ios-integrity-routes.js";
 
@@ -256,6 +258,8 @@ export async function buildApi(
   await registerConsentRoutes(app);
   await registerCareRoutes(app);
   await registerPulseRoutes(app);
+  await registerTogetherRoutes(app);
+  await registerAiRoutes(app);
   await registerPrivacyRoutes(app);
   await registerNotificationDeviceRoutes(app);
   await registerAndroidIntegrityRoutes(app);

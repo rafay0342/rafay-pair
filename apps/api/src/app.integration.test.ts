@@ -1216,6 +1216,306 @@ describe("Milestone 1 API", () => {
     expect(remaining.rows[0]?.count).toBe(0);
   });
 
+  it("runs a together session end to end and keeps derived state consent-gated", async () => {
+    const host = await registerNative(
+      "together-host@example.test",
+      "Together Host",
+    );
+    const guest = await registerNative(
+      "together-guest@example.test",
+      "Together Guest",
+    );
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/pairs/current",
+      headers: nativeHeaders(host.accessToken),
+    });
+    const pair = created.json().pair as { id: string; joinCode: string };
+    await app.inject({
+      method: "POST",
+      url: "/v1/pairs/join",
+      headers: nativeHeaders(guest.accessToken),
+      payload: { code: pair.joinCode },
+    });
+
+    // Consent defaults to denied, so a session cannot even be proposed.
+    const beforeConsent = await app.inject({
+      method: "POST",
+      url: "/v1/together-sessions",
+      headers: nativeHeaders(host.accessToken),
+      payload: { activity: "squat" },
+    });
+    expect(beforeConsent.statusCode).toBe(403);
+    expect(beforeConsent.json().code).toBe("CONSENT_DENIED");
+
+    for (const token of [host.accessToken, guest.accessToken]) {
+      await app.inject({
+        method: "PUT",
+        url: "/v1/consents",
+        headers: nativeHeaders(token),
+        payload: {
+          grants: [{ capability: "workout_progress", granted: true }],
+        },
+      });
+    }
+
+    const invited = await app.inject({
+      method: "POST",
+      url: "/v1/together-sessions",
+      headers: nativeHeaders(host.accessToken),
+      payload: { activity: "squat" },
+    });
+    expect(invited.statusCode).toBe(201);
+    const sessionId = (invited.json().session as { id: string }).id;
+
+    // Only one session may be open per pair, so a second invitation is refused
+    // rather than racing into existence.
+    const duplicate = await app.inject({
+      method: "POST",
+      url: "/v1/together-sessions",
+      headers: nativeHeaders(host.accessToken),
+      payload: { activity: "squat" },
+    });
+    expect(duplicate.statusCode).toBe(409);
+
+    // The inviter cannot answer their own invitation.
+    const selfAnswer = await app.inject({
+      method: "POST",
+      url: `/v1/together-sessions/${sessionId}/respond`,
+      headers: nativeHeaders(host.accessToken),
+      payload: { response: "accepted" },
+    });
+    expect(selfAnswer.statusCode).toBe(403);
+
+    const accepted = await app.inject({
+      method: "POST",
+      url: `/v1/together-sessions/${sessionId}/respond`,
+      headers: nativeHeaders(guest.accessToken),
+      payload: { response: "accepted" },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect((accepted.json().session as { status: string }).status).toBe(
+      "active",
+    );
+
+    const published = await app.inject({
+      method: "PUT",
+      url: `/v1/together-sessions/${sessionId}/state`,
+      headers: nativeHeaders(host.accessToken),
+      payload: {
+        repetitions: 7,
+        exercisePhase: "bottom",
+        setIndex: 1,
+        elapsedMs: 42_000,
+        estimatedKcal: 18.4,
+      },
+    });
+    expect(published.statusCode).toBe(200);
+
+    const guestView = await app.inject({
+      method: "GET",
+      url: "/v1/together-sessions/current",
+      headers: nativeHeaders(guest.accessToken),
+    });
+    const guestParticipants = (
+      guestView.json().session as { participants: { userId: string }[] }
+    ).participants;
+    expect(guestParticipants.map((entry) => entry.userId)).toContain(
+      host.userId,
+    );
+
+    // Revoking the host's grant hides state already at rest, immediately.
+    await app.inject({
+      method: "PUT",
+      url: "/v1/consents",
+      headers: nativeHeaders(host.accessToken),
+      payload: { grants: [{ capability: "workout_progress", granted: false }] },
+    });
+    const afterRevoke = await app.inject({
+      method: "GET",
+      url: "/v1/together-sessions/current",
+      headers: nativeHeaders(guest.accessToken),
+    });
+    expect(
+      (afterRevoke.json().session as { participants: unknown[] }).participants,
+    ).toHaveLength(0);
+
+    // Ending needs no grant: a control consent could block is not a control.
+    const ended = await app.inject({
+      method: "POST",
+      url: `/v1/together-sessions/${sessionId}/end`,
+      headers: nativeHeaders(host.accessToken),
+    });
+    expect(ended.statusCode).toBe(200);
+    expect((ended.json().session as { status: string }).status).toBe("ended");
+
+    const remainingStates = await pool.query(
+      "SELECT count(*)::int AS count FROM together_participant_states WHERE session_id = $1",
+      [sessionId],
+    );
+    expect(remainingStates.rows[0]?.count).toBe(0);
+
+    const closed = await app.inject({
+      method: "GET",
+      url: "/v1/together-sessions/current",
+      headers: nativeHeaders(host.accessToken),
+    });
+    expect(closed.json().session).toBeNull();
+  });
+
+  it("authorizes AI tool calls, refuses mutations without confirmation, and never executes a call twice", async () => {
+    const user = await registerNative("ai-user@example.test", "AI User");
+
+    const started = await app.inject({
+      method: "POST",
+      url: "/v1/ai/sessions",
+      headers: nativeHeaders(user.accessToken),
+    });
+    expect(started.statusCode).toBe(201);
+    const session = started.json().session as {
+      id: string;
+      identityDisclosure: string;
+      identityAnnounced: boolean;
+      allowedTools: { name: string; requiresConfirmation: boolean }[];
+    };
+    // The disclosure is server-supplied so a client cannot quietly reword it.
+    expect(session.identityDisclosure).toContain("Rafay AI");
+    expect(session.identityDisclosure).toContain("generated voice");
+    expect(session.identityAnnounced).toBe(false);
+    expect(session.allowedTools.map((tool) => tool.name)).toContain("remember");
+
+    const announced = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/identity-announced`,
+      headers: nativeHeaders(user.accessToken),
+    });
+    expect(
+      (announced.json().session as { identityAnnounced: boolean })
+        .identityAnnounced,
+    ).toBe(true);
+
+    // A tool the model invents is refused rather than attempted.
+    const unknown = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: {
+        callId: "call-unknown",
+        name: "delete_everything",
+        arguments: {},
+      },
+    });
+    expect(unknown.json().decision).toBe("not_allowlisted");
+
+    // A malformed shape fails at the boundary, not inside a query.
+    const malformed = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: {
+        callId: "call-malformed",
+        name: "remember",
+        arguments: { category: "not-a-category", content: "" },
+      },
+    });
+    expect(malformed.json().decision).toBe("invalid_arguments");
+
+    // A mutation without confirmation is refused; the model cannot self-confirm.
+    const unconfirmed = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: {
+        callId: "call-remember",
+        name: "remember",
+        arguments: {
+          category: "preference",
+          content: "Prefers evening workouts",
+        },
+      },
+    });
+    expect(unconfirmed.json().decision).toBe("confirmation_required");
+
+    const confirmed = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: {
+        callId: "call-remember",
+        name: "remember",
+        arguments: {
+          category: "preference",
+          content: "Prefers evening workouts",
+        },
+        confirmed: true,
+      },
+    });
+    expect(confirmed.json().decision).toBe("executed");
+
+    // Repeating the call id after a reconnect returns the original decision
+    // instead of executing a second time.
+    const replayed = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: {
+        callId: "call-remember",
+        name: "remember",
+        arguments: {
+          category: "preference",
+          content: "Prefers evening workouts",
+        },
+        confirmed: true,
+      },
+    });
+    expect(replayed.json().replayed).toBe(true);
+    const stored = await pool.query(
+      "SELECT count(*)::int AS count FROM ai_memories WHERE user_id = $1",
+      [user.userId],
+    );
+    expect(stored.rows[0]?.count).toBe(1);
+
+    // Memory is listable and individually deletable by its owner.
+    const listed = await app.inject({
+      method: "GET",
+      url: "/v1/ai/memories",
+      headers: nativeHeaders(user.accessToken),
+    });
+    const memories = listed.json().memories as { id: string; author: string }[];
+    expect(memories).toHaveLength(1);
+    // Entries the model proposed are marked, so a user can tell them apart from
+    // what they said themselves.
+    expect(memories[0]?.author).toBe("assistant");
+
+    const removed = await app.inject({
+      method: "DELETE",
+      url: `/v1/ai/memories/${memories[0]?.id ?? ""}`,
+      headers: nativeHeaders(user.accessToken),
+    });
+    expect(removed.statusCode).toBe(204);
+    const afterDelete = await pool.query(
+      "SELECT count(*)::int AS count FROM ai_memories WHERE user_id = $1",
+      [user.userId],
+    );
+    expect(afterDelete.rows[0]?.count).toBe(0);
+
+    const ended = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/end`,
+      headers: nativeHeaders(user.accessToken),
+    });
+    expect((ended.json().session as { status: string }).status).toBe("ended");
+
+    // A tool call against a closed session has nowhere to land.
+    const afterEnd = await app.inject({
+      method: "POST",
+      url: `/v1/ai/sessions/${session.id}/tool-calls`,
+      headers: nativeHeaders(user.accessToken),
+      payload: { callId: "call-late", name: "get_latest_pulse", arguments: {} },
+    });
+    expect(afterEnd.statusCode).toBe(404);
+  });
+
   it("keeps tickets out of URLs, fences replay by worker authorization and consent, and closes rotated sessions", async () => {
     const sender = await registerNative(
       "realtime-sender@example.test",

@@ -214,6 +214,164 @@ export const partnerPulseSnapshotResponseSchema = z.object({
   snapshot: pulseSnapshotSchema.nullable(),
 });
 
+/**
+ * Together mode — a shared workout both partners are present for.
+ *
+ * Master specification §10: each phone detects its own user and publishes only
+ * derived session state. There is no field here for a frame, a landmark, or an
+ * audio sample, so none can be transmitted.
+ */
+export const togetherActivitySchema = z.enum([
+  "squat",
+  "bodyweightMixed",
+  "guidedBreathing",
+]);
+
+export const togetherSessionStatusSchema = z.enum([
+  "invited",
+  "active",
+  "declined",
+  "ended",
+  "expired",
+]);
+
+export const togetherExercisePhaseSchema = z.enum([
+  "idle",
+  "descending",
+  "bottom",
+  "resting",
+  "complete",
+]);
+
+export const togetherBreathingStateSchema = z.enum([
+  "idle",
+  "inhale",
+  "hold",
+  "exhale",
+  "holdAfter",
+  "complete",
+]);
+
+export const togetherParticipantStateSchema = z.object({
+  userId: z.string().uuid(),
+  repetitions: z.number().int().min(0).max(10_000),
+  exercisePhase: togetherExercisePhaseSchema,
+  setIndex: z.number().int().min(0).max(100),
+  elapsedMs: z.number().int().min(0),
+  estimatedKcal: z.number().min(0).nullable(),
+  breathingState: togetherBreathingStateSchema.nullable(),
+  updatedAt: z.string().datetime(),
+});
+
+export const togetherSessionSchema = z.object({
+  id: z.string().uuid(),
+  pairId: z.string().uuid(),
+  invitedByUserId: z.string().uuid(),
+  invitedUserId: z.string().uuid(),
+  activity: togetherActivitySchema,
+  status: togetherSessionStatusSchema,
+  createdAt: z.string().datetime(),
+  acceptedAt: z.string().datetime().nullable(),
+  endedAt: z.string().datetime().nullable(),
+  expiresAt: z.string().datetime(),
+  participants: z.array(togetherParticipantStateSchema),
+});
+
+export const createTogetherSessionSchema = z.object({
+  activity: togetherActivitySchema,
+});
+
+export const respondTogetherSessionSchema = z.object({
+  response: z.enum(["accepted", "declined"]),
+});
+
+/**
+ * The derived state a client publishes. Bounds are enforced by the contract as
+ * well as the database so an implausible value is refused at the edge rather
+ * than stored and then shown to a partner.
+ */
+export const publishTogetherStateSchema = z.object({
+  repetitions: z.number().int().min(0).max(10_000),
+  exercisePhase: togetherExercisePhaseSchema,
+  setIndex: z.number().int().min(0).max(100),
+  elapsedMs: z
+    .number()
+    .int()
+    .min(0)
+    .max(24 * 60 * 60 * 1000),
+  estimatedKcal: z.number().min(0).max(10_000).optional(),
+  breathingState: togetherBreathingStateSchema.optional(),
+});
+
+export const togetherSessionResponseSchema = z.object({
+  session: togetherSessionSchema.nullable(),
+});
+
+/**
+ * Relationship memory.
+ *
+ * Memory belongs to a person, not to a pair: it is never readable through pair
+ * state, and it does not transfer or vanish when a pair ends. Entries the model
+ * proposed are marked `assistant` so a user can tell what they said apart from
+ * what was inferred about them.
+ */
+export const aiMemoryCategorySchema = z.enum([
+  "preference",
+  "routine",
+  "boundary",
+  "context",
+]);
+
+export const aiMemorySchema = z.object({
+  id: z.string().uuid(),
+  category: aiMemoryCategorySchema,
+  content: z.string().min(1).max(500),
+  author: z.enum(["user", "assistant"]),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export const createAiMemorySchema = z.object({
+  category: aiMemoryCategorySchema,
+  content: z.string().trim().min(1).max(500),
+});
+
+export const aiMemoryListResponseSchema = z.object({
+  memories: z.array(aiMemorySchema),
+  /** Hard ceiling; unbounded memory is both a privacy and a context problem. */
+  limit: z.number().int().positive(),
+});
+
+export const aiMemoryResponseSchema = z.object({ memory: aiMemorySchema });
+
+export const aiSessionSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["active", "ended", "expired", "failed"]),
+  startedAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+  endedAt: z.string().datetime().nullable(),
+  identityAnnounced: z.boolean(),
+  /**
+   * The disclosure the client must present before any generated audio plays.
+   * It is server-supplied so a client cannot quietly drop or reword it.
+   */
+  identityDisclosure: z.string().min(1),
+  /** Tools this session is permitted to call, for display and for the client's
+   * own confirmation prompts. */
+  allowedTools: z.array(
+    z.object({
+      name: z.string(),
+      title: z.string(),
+      mutating: z.boolean(),
+      requiresConfirmation: z.boolean(),
+    }),
+  ),
+});
+
+export const aiSessionResponseSchema = z.object({
+  session: aiSessionSchema.nullable(),
+});
+
 export const privacyStateSchema = z.object({
   pairId: z.string().uuid(),
   userId: z.string().uuid(),
@@ -270,6 +428,11 @@ export const realtimeEventEnvelopeSchema = z.object({
     "privacy.resumed",
     "pair.disconnected",
     "pulse.snapshot.shared",
+    "together.session.invited",
+    "together.session.accepted",
+    "together.session.declined",
+    "together.session.ended",
+    "together.state.updated",
   ]),
   occurredAt: z.string().datetime(),
   pairId: z.string().uuid(),
