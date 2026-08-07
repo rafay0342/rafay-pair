@@ -1725,6 +1725,124 @@ describe("Milestone 1 API", () => {
     expect(partnerCare.statusCode).toBe(409);
   });
 
+  it("accepts blood pressure only from a cuff or a health record, never from the app", async () => {
+    const address = "198.51.100.11";
+    const user = await registerNative("bp-user@example.test", "BP User");
+    const headers = nativeHeaders(user.accessToken);
+    const measuredAt = new Date(Date.now() - 60_000).toISOString();
+
+    const typed = await app.inject({
+      method: "POST",
+      remoteAddress: address,
+      url: "/v1/blood-pressure",
+      headers,
+      payload: { systolic: 118, diastolic: 76, pulseBpm: 64, measuredAt },
+    });
+    expect(typed.statusCode).toBe(201);
+    const manual = typed.json().reading as Record<string, unknown>;
+    // Provenance is pinned to the route, not read from the request, so a client
+    // cannot describe a typed reading as anything else.
+    expect(manual.source).toBe("manual_entry");
+    expect(manual.measurementKind).toBe("manually_entered");
+    expect(manual.externalOrigin).toBeNull();
+
+    // Physically impossible readings are refused rather than stored: someone
+    // may act on a number this app shows them.
+    for (const invalid of [
+      { systolic: 76, diastolic: 118 },
+      { systolic: 400, diastolic: 90 },
+      { systolic: 120, diastolic: 10 },
+    ]) {
+      const rejected = await app.inject({
+        method: "POST",
+        remoteAddress: address,
+        url: "/v1/blood-pressure",
+        headers,
+        payload: { ...invalid, measuredAt },
+      });
+      expect(rejected.statusCode, JSON.stringify(invalid)).toBe(400);
+    }
+
+    const future = await app.inject({
+      method: "POST",
+      remoteAddress: address,
+      url: "/v1/blood-pressure",
+      headers,
+      payload: {
+        systolic: 120,
+        diastolic: 80,
+        measuredAt: new Date(Date.now() + 3_600_000).toISOString(),
+      },
+    });
+    expect(future.statusCode).toBe(400);
+
+    const importPayload = {
+      systolic: 126,
+      diastolic: 82,
+      measuredAt,
+      externalOrigin: "Apple Health",
+      externalRecordId: "health-record-1",
+    };
+    const imported = await app.inject({
+      method: "POST",
+      remoteAddress: address,
+      url: "/v1/blood-pressure/imports",
+      headers,
+      payload: importPayload,
+    });
+    expect(imported.statusCode).toBe(201);
+    const record = imported.json().reading as Record<string, unknown>;
+    expect(record.source).toBe("imported_health_record");
+    expect(record.measurementKind).toBe("externally_sourced");
+    // "Externally sourced" without naming the source is not provenance.
+    expect(record.externalOrigin).toBe("Apple Health");
+
+    // A repeated sync is the normal case. Importing the same record again
+    // returns the existing reading rather than inventing a second measurement.
+    const again = await app.inject({
+      method: "POST",
+      remoteAddress: address,
+      url: "/v1/blood-pressure/imports",
+      headers,
+      payload: importPayload,
+    });
+    expect(again.statusCode).toBe(200);
+    expect((again.json().reading as { id: string }).id).toBe(record.id);
+
+    const listed = await app.inject({
+      method: "GET",
+      remoteAddress: address,
+      url: "/v1/blood-pressure",
+      headers,
+    });
+    const readings = listed.json().readings as { id: string }[];
+    expect(readings).toHaveLength(2);
+
+    // No partner surface exists for blood pressure at all, so there is nothing
+    // to consent to and nothing to leak.
+    const partnerAttempt = await app.inject({
+      method: "GET",
+      remoteAddress: address,
+      url: "/v1/blood-pressure/partner",
+      headers,
+    });
+    expect(partnerAttempt.statusCode).toBe(404);
+
+    const removed = await app.inject({
+      method: "DELETE",
+      remoteAddress: address,
+      url: `/v1/blood-pressure/${readings[0]?.id ?? ""}`,
+      headers,
+    });
+    expect(removed.statusCode).toBe(204);
+
+    const stored = await pool.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM blood_pressure_readings WHERE user_id = $1",
+      [user.userId],
+    );
+    expect(stored.rows[0]?.count).toBe(1);
+  });
+
   it("admits one AI voice socket per session, only after the disclosure was announced", async () => {
     const user = await registerNative("ai-voice@example.test", "AI Voice");
 

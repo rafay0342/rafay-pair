@@ -19,6 +19,7 @@ struct RafayPairApp: App {
         together = dependencies.together
         assistant = dependencies.assistant
         voice = dependencies.voice
+        bloodPressure = dependencies.bloodPressure
         _sessionStore = State(initialValue: SessionStore(repository: dependencies.auth))
         _pairStore = State(initialValue: PairStore(repository: dependencies.pair))
         _consentStore = State(initialValue: ConsentStore(repository: dependencies.consent))
@@ -35,6 +36,7 @@ struct RafayPairApp: App {
     private let together: any TogetherRepository
     private let assistant: any AssistantRepository
     private let voice: VoiceClient
+    private let bloodPressure: any BloodPressureRepository
 
     var body: some Scene {
         WindowGroup {
@@ -50,7 +52,8 @@ struct RafayPairApp: App {
                 appAttest: appAttest,
                 together: together,
                 assistant: assistant,
-                voice: voice
+                voice: voice,
+                bloodPressure: bloodPressure
             )
             .tint(Brand.coral)
         }

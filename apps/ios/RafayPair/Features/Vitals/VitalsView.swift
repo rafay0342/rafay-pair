@@ -5,6 +5,8 @@ import SwiftUI
 /// Every physiological number on this screen is labelled as an estimate, and
 /// blood pressure is stated as unsupported rather than quietly absent.
 struct VitalsView: View {
+    let bloodPressure: any BloodPressureRepository
+
     @State private var store = VitalsStore()
     @State private var capture = PulseCaptureSession()
     @State private var breathAudio = BreathAudioCaptureSession()
@@ -25,7 +27,7 @@ struct VitalsView: View {
                 if PhysiologyTuning.faceRppgEnabled {
                     faceRppgCard
                 }
-                bloodPressureCard
+                BloodPressureView(repository: bloodPressure)
             }
             .padding(18)
         }
@@ -352,24 +354,6 @@ struct VitalsView: View {
 
     // MARK: - Blood pressure policy
 
-    private var bloodPressureCard: some View {
-        RPCard {
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Blood pressure", systemImage: "cross.case.fill")
-                    .font(.headline)
-                    .foregroundStyle(Brand.plum)
-                Text(
-                    "RafayPair does not estimate blood pressure. A phone camera cannot measure it, and no amount of processing changes that."
-                )
-                .foregroundStyle(.secondary)
-                Text(
-                    "If you track it, use the cuff and the app that came with it. RafayPair holds no blood pressure value of its own, and does not read one from Health."
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-        }
-    }
 }
 
 /// The heart orb. Animates at the supplied rate, and rests when there is no

@@ -4,6 +4,8 @@ import type {
   AiMemoryList as ContractAiMemoryList,
   AiSession as ContractAiSession,
   AuthResponse,
+  BloodPressureList as ContractBloodPressureList,
+  BloodPressureReading as ContractBloodPressureReading,
   CareRequest as ContractCareRequest,
   CareRequestKind,
   CareRequestStatus,
@@ -58,6 +60,8 @@ export type TogetherStateInput = PublishTogetherState;
 export type AiMemory = ContractAiMemory;
 export type AiMemoryCategory = ContractAiMemoryCategory;
 export type AiMemoryList = ContractAiMemoryList;
+export type BloodPressureReading = ContractBloodPressureReading;
+export type BloodPressureList = ContractBloodPressureList;
 export type AiSession = ContractAiSession;
 
 export interface OfflineCareDraft {

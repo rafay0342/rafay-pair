@@ -91,7 +91,7 @@ class AppContainer(application: Application, firebaseAvailable: Boolean) {
         tokenVault,
         rawHttpClient,
     )
-    private val api = ApiClient(BuildConfig.API_BASE_URL, json, tokenVault, refreshCoordinator)
+    val api = ApiClient(BuildConfig.API_BASE_URL, json, tokenVault, refreshCoordinator)
     val notificationDeviceRepository = NotificationDeviceRepository(api, pushRegistrationStore, preferences)
     val playIntegrityCoordinator = PlayIntegrityCoordinator(
         application = application,

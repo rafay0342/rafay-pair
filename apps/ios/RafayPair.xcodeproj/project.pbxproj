@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0218C39F37C77B5B6E001823 /* BloodPressureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1875A69B821205CB78D6BB46 /* BloodPressureView.swift */; };
 		05FE444B3FD5AE235A4F3E73 /* PrivacyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0C510210FEDB83E5E9A606 /* PrivacyStore.swift */; };
 		07B9E6C748614BF2C72EFF5A /* APIModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA3A08404BF877CAA1DC2FE /* APIModelsTests.swift */; };
 		090D67FBAD28B7CA153EDBD0 /* CareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB86585AC475450E7745102 /* CareView.swift */; };
@@ -95,6 +96,7 @@
 		0C088111388D3F9993E3DDF3 /* PushNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationTests.swift; sourceTree = "<group>"; };
 		117E83B0F63890B736C3CADC /* VitalsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VitalsStore.swift; sourceTree = "<group>"; };
 		11ABD5A0CF218E9F48B90AE7 /* RafayPair.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RafayPair.entitlements; sourceTree = "<group>"; };
+		1875A69B821205CB78D6BB46 /* BloodPressureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureView.swift; sourceTree = "<group>"; };
 		1A1A41697E71974815CCF76E /* RafayPairUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RafayPairUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1EB86585AC475450E7745102 /* CareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareView.swift; sourceTree = "<group>"; };
 		256AEAB456ECBB150609A765 /* PushNotificationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationCoordinator.swift; sourceTree = "<group>"; };
@@ -466,6 +468,7 @@
 		F4EF6B8CA4CB1431A9875513 /* Vitals */ = {
 			isa = PBXGroup;
 			children = (
+				1875A69B821205CB78D6BB46 /* BloodPressureView.swift */,
 				117E83B0F63890B736C3CADC /* VitalsStore.swift */,
 				AAC5FE959CD5FDC087C02A40 /* VitalsView.swift */,
 			);
@@ -687,6 +690,7 @@
 				FEEBC791F5277824F8A94ABB /* AppDependencies.swift in Sources */,
 				CF5BB151D4F864BE48BC3550 /* AudioBreathingEngine.swift in Sources */,
 				EA54439E33FCB200FDF10307 /* AuthenticationView.swift in Sources */,
+				0218C39F37C77B5B6E001823 /* BloodPressureView.swift in Sources */,
 				3FA84533FFEFC0BDD2247B2F /* Brand.swift in Sources */,
 				31D894CFEE0288FA5CD8BD7D /* BreathAudioCaptureSession.swift in Sources */,
 				9A508FBCC292453847E3F468 /* CameraPreview.swift in Sources */,

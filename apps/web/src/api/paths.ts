@@ -29,6 +29,12 @@ export const apiPaths = Object.freeze({
       `/v1/together-sessions/${encodeURIComponent(id)}/state`,
     end: (id: string) => `/v1/together-sessions/${encodeURIComponent(id)}/end`,
   },
+  bloodPressure: {
+    list: "/v1/blood-pressure",
+    create: "/v1/blood-pressure",
+    imports: "/v1/blood-pressure/imports",
+    reading: (id: string) => `/v1/blood-pressure/${encodeURIComponent(id)}`,
+  },
   ai: {
     memories: "/v1/ai/memories",
     memory: (id: string) => `/v1/ai/memories/${encodeURIComponent(id)}`,

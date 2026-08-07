@@ -9,14 +9,19 @@ import {
   type BreathingPhase,
 } from "@rafay-pair/physiology-engine";
 
+import { BloodPressureCard } from "../components/BloodPressureCard";
+
 /**
- * Guided breathing, the living heart, and the blood-pressure position.
+ * Guided breathing, the living heart, and blood pressure the user brings.
  *
  * Finger-camera pulse is deliberately absent here. The measurement needs the
  * rear camera with its torch lit and exposure locked; browsers expose neither
  * reliably, and without a lit fingertip the signal is not recoverable. Offering
  * a browser version anyway would mean shipping a worse estimate under the same
  * label, so the Web client says where the measurement lives instead.
+ *
+ * Blood pressure is the opposite case: nothing is estimated, but a reading from
+ * a real cuff is worth keeping, so it is entered rather than derived.
  */
 export function VitalsPage(): React.JSX.Element {
   const [pattern, setPattern] = useState<BreathingPattern | undefined>(
@@ -127,18 +132,7 @@ export function VitalsPage(): React.JSX.Element {
         </p>
       </section>
 
-      <section className="pause-effects" aria-labelledby="bp-heading">
-        <h2 id="bp-heading">Blood pressure</h2>
-        <p>
-          RafayPair does not estimate blood pressure. A phone camera cannot
-          measure it, and no amount of processing changes that.
-        </p>
-        <p>
-          If you track it, use the cuff and the app that came with it. RafayPair
-          holds no blood pressure value of its own, and does not read one from a
-          health record.
-        </p>
-      </section>
+      <BloodPressureCard />
     </div>
   );
 }

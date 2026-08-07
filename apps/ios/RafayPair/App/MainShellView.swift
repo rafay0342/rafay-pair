@@ -18,6 +18,7 @@ struct MainShellView: View {
     let together: any TogetherRepository
     let assistant: any AssistantRepository
     let voice: VoiceClient
+    let bloodPressure: any BloodPressureRepository
 
     private var activePairID: UUID? {
         pairStore.pair?.status == .active ? pairStore.pair?.id : nil
@@ -71,7 +72,7 @@ struct MainShellView: View {
             .tabItem { Label("Move", systemImage: "figure.strengthtraining.functional") }
 
             NavigationStack {
-                VitalsView()
+                VitalsView(bloodPressure: bloodPressure)
             }
             .tabItem { Label("Vitals", systemImage: "heart.text.square.fill") }
 

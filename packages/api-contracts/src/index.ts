@@ -199,6 +199,69 @@ export const pulseSnapshotSchema = z.object({
   ageMs: z.number().int().min(0),
 });
 
+/**
+ * Blood pressure, from a real instrument only.
+ *
+ * Master specification §5: the two supported sources are a reading the user
+ * typed from a cuff and a record imported from the phone's health repository
+ * with its origin preserved. There is no third variant, and `kind` is pinned to
+ * the source rather than carried independently, so no request can describe a
+ * typed reading as externally sourced or the reverse.
+ */
+export const bloodPressureReadingSchema = z.object({
+  id: z.string().uuid(),
+  systolic: z.number().int().min(60).max(260),
+  diastolic: z.number().int().min(30).max(200),
+  pulseBpm: z.number().int().min(30).max(240).nullable(),
+  source: z.enum(["manual_entry", "imported_health_record"]),
+  measurementKind: z.enum(["manually_entered", "externally_sourced"]),
+  /** Where an imported record came from. Absent for a typed reading. */
+  externalOrigin: z.string().min(1).max(120).nullable(),
+  measuredAt: z.string().datetime(),
+  note: z.string().min(1).max(280).nullable(),
+  createdAt: z.string().datetime(),
+});
+
+export type BloodPressureReading = z.infer<typeof bloodPressureReadingSchema>;
+
+const bloodPressureValuesSchema = z.object({
+  systolic: z.number().int().min(60).max(260),
+  diastolic: z.number().int().min(30).max(200),
+  pulseBpm: z.number().int().min(30).max(240).nullable().optional(),
+  measuredAt: z.string().datetime(),
+  note: z.string().trim().min(1).max(280).nullable().optional(),
+});
+
+export const recordManualBloodPressureSchema = bloodPressureValuesSchema.refine(
+  (reading) => reading.systolic > reading.diastolic,
+  { message: "Systolic must be higher than diastolic" },
+);
+
+export const importBloodPressureSchema = bloodPressureValuesSchema
+  .extend({
+    /**
+     * The repository the reading came from, and its identifier there. The
+     * identifier is what makes importing twice produce one reading rather than
+     * two, and the origin is what keeps "externally sourced" meaningful.
+     */
+    externalOrigin: z.string().trim().min(1).max(120),
+    externalRecordId: z.string().trim().min(1).max(200),
+  })
+  .refine((reading) => reading.systolic > reading.diastolic, {
+    message: "Systolic must be higher than diastolic",
+  });
+
+export const bloodPressureListResponseSchema = z.object({
+  readings: z.array(bloodPressureReadingSchema),
+  limit: z.number().int().positive(),
+});
+
+export type BloodPressureList = z.infer<typeof bloodPressureListResponseSchema>;
+
+export const bloodPressureResponseSchema = z.object({
+  reading: bloodPressureReadingSchema,
+});
+
 export const sharePulseSnapshotSchema = z.object({
   bpm: z.number().min(42).max(210),
   confidenceBand: z.enum(["low", "moderate", "high"]),

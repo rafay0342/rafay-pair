@@ -394,6 +394,65 @@ struct AiSession: Codable, Sendable, Identifiable {
     let allowedTools: [AiAllowedTool]
 }
 
+// MARK: - Blood pressure
+
+/// Blood pressure the user brings, never blood pressure this app derives.
+///
+/// Master specification §5: the only two sources are a reading typed from a
+/// real cuff and a record imported from Health with its origin preserved.
+/// `source` and `measurementKind` are enumerations rather than strings so no
+/// value can be constructed that implies the app measured it.
+enum BloodPressureSource: String, Codable, Sendable {
+    case manualEntry = "manual_entry"
+    case importedHealthRecord = "imported_health_record"
+}
+
+enum BloodPressureMeasurementKind: String, Codable, Sendable {
+    case manuallyEntered = "manually_entered"
+    case externallySourced = "externally_sourced"
+}
+
+struct BloodPressureReading: Codable, Sendable, Identifiable {
+    let id: UUID
+    let systolic: Int
+    let diastolic: Int
+    let pulseBpm: Int?
+    let source: BloodPressureSource
+    let measurementKind: BloodPressureMeasurementKind
+    /// Where an imported record came from. Absent for a typed reading.
+    let externalOrigin: String?
+    let measuredAt: Date
+    let note: String?
+    let createdAt: Date
+}
+
+struct BloodPressureListResponse: Codable, Sendable {
+    let readings: [BloodPressureReading]
+    let limit: Int
+}
+
+struct BloodPressureResponse: Codable, Sendable {
+    let reading: BloodPressureReading
+}
+
+struct RecordBloodPressureRequest: Codable, Sendable {
+    let systolic: Int
+    let diastolic: Int
+    let pulseBpm: Int?
+    let measuredAt: Date
+    let note: String?
+}
+
+struct ImportBloodPressureRequest: Codable, Sendable {
+    let systolic: Int
+    let diastolic: Int
+    let pulseBpm: Int?
+    let measuredAt: Date
+    let note: String?
+    let externalOrigin: String
+    let externalRecordId: String
+}
+
 struct AiVoiceAudioFormat: Codable, Sendable {
     let encoding: String
     let sampleRateHz: Int

@@ -1,4 +1,6 @@
 import {
+  bloodPressureListResponseSchema,
+  bloodPressureResponseSchema,
   aiMemoryListResponseSchema,
   aiMemoryResponseSchema,
   authResponseSchema,
@@ -16,6 +18,8 @@ import {
 
 import { runtimeConfig } from "../config";
 import type {
+  BloodPressureList,
+  BloodPressureReading,
   AiMemory,
   AiMemoryCategory,
   AiMemoryList,
@@ -382,6 +386,40 @@ export class ApiClient {
   }
 
   // MARK: - Assistant memory
+
+  public async bloodPressureReadings(
+    signal?: AbortSignal,
+  ): Promise<BloodPressureList> {
+    const response = await this.request(apiPaths.bloodPressure.list, {
+      ...(signal ? { signal } : {}),
+      retryAfterRefresh: true,
+    });
+    return parseContract(bloodPressureListResponseSchema, response);
+  }
+
+  public async recordBloodPressure(input: {
+    systolic: number;
+    diastolic: number;
+    pulseBpm: number | null;
+    measuredAt: string;
+    note: string | null;
+  }): Promise<BloodPressureReading> {
+    const response = await this.request(apiPaths.bloodPressure.create, {
+      method: "POST",
+      body: input,
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+    return parseContract(bloodPressureResponseSchema, response).reading;
+  }
+
+  public async deleteBloodPressure(id: string): Promise<void> {
+    await this.request(apiPaths.bloodPressure.reading(id), {
+      method: "DELETE",
+      csrfProtected: true,
+      retryAfterRefresh: true,
+    });
+  }
 
   public async aiMemories(signal?: AbortSignal): Promise<AiMemoryList> {
     const response = await this.request(apiPaths.ai.memories, {

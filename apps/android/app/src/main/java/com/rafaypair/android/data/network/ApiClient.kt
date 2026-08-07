@@ -284,6 +284,36 @@ class ApiClient(
 
     // MARK: - Rafay AI
 
+    // MARK: - Blood pressure
+
+    suspend fun bloodPressureReadings(): BloodPressureListResponseDto = get(
+        "/v1/blood-pressure",
+        BloodPressureListResponseDto.serializer(),
+    )
+
+    suspend fun recordBloodPressure(
+        request: RecordBloodPressureRequestDto,
+    ): BloodPressureResponseDto = post(
+        "/v1/blood-pressure",
+        request,
+        RecordBloodPressureRequestDto.serializer(),
+        BloodPressureResponseDto.serializer(),
+    )
+
+    /** Importing the same record twice returns the existing reading. */
+    suspend fun importBloodPressure(
+        request: ImportBloodPressureRequestDto,
+    ): BloodPressureResponseDto = post(
+        "/v1/blood-pressure/imports",
+        request,
+        ImportBloodPressureRequestDto.serializer(),
+        BloodPressureResponseDto.serializer(),
+    )
+
+    suspend fun deleteBloodPressure(id: String) {
+        delete("/v1/blood-pressure/${UUID.fromString(id)}")
+    }
+
     suspend fun currentAiSession(): AiSessionResponseDto = get(
         "/v1/ai/sessions/current",
         AiSessionResponseDto.serializer(),

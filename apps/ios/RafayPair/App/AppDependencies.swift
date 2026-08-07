@@ -12,6 +12,7 @@ struct AppDependencies: Sendable {
     let privacy: any PrivacyRepository
     let realtime: RealtimeClient
     let voice: VoiceClient
+    let bloodPressure: any BloodPressureRepository
     let notifications: PushNotificationCoordinator
     let appAttest: AppAttestCoordinator
 
@@ -49,6 +50,7 @@ struct AppDependencies: Sendable {
             privacy: RemotePrivacyRepository(api: api),
             realtime: RealtimeClient(api: api),
             voice: VoiceClient(api: api),
+            bloodPressure: RemoteBloodPressureRepository(api: api),
             notifications: PushNotificationCoordinator(
                 service: notificationDevices,
                 delivery: notificationDelivery

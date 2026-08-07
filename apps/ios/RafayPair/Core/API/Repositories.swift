@@ -273,6 +273,52 @@ actor RemoteTogetherRepository: TogetherRepository {
     }
 }
 
+protocol BloodPressureRepository: Sendable {
+    func readings() async throws -> BloodPressureListResponse
+    func record(_ request: RecordBloodPressureRequest) async throws -> BloodPressureReading
+    func importReading(_ request: ImportBloodPressureRequest) async throws -> BloodPressureReading
+    func delete(id: UUID) async throws
+}
+
+actor RemoteBloodPressureRepository: BloodPressureRepository {
+    private let api: APIClient
+
+    init(api: APIClient) {
+        self.api = api
+    }
+
+    func readings() async throws -> BloodPressureListResponse {
+        try await api.authenticated("/v1/blood-pressure")
+    }
+
+    func record(_ request: RecordBloodPressureRequest) async throws -> BloodPressureReading {
+        let response: BloodPressureResponse = try await api.authenticated(
+            "/v1/blood-pressure",
+            method: .post,
+            body: request
+        )
+        return response.reading
+    }
+
+    /// Importing the same record twice returns the reading that already exists
+    /// rather than a second one, so a repeated Health sync is safe to run.
+    func importReading(_ request: ImportBloodPressureRequest) async throws -> BloodPressureReading {
+        let response: BloodPressureResponse = try await api.authenticated(
+            "/v1/blood-pressure/imports",
+            method: .post,
+            body: request
+        )
+        return response.reading
+    }
+
+    func delete(id: UUID) async throws {
+        try await api.authenticatedVoid(
+            "/v1/blood-pressure/\(id.uuidString.lowercased())",
+            method: .delete
+        )
+    }
+}
+
 protocol AssistantRepository: Sendable {
     func memories() async throws -> AiMemoryListResponse
     func addMemory(category: AiMemoryCategory, content: String) async throws -> AiMemory

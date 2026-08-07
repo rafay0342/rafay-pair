@@ -33,6 +33,7 @@ import {
 } from "./play-integrity.js";
 import { createRedisRateLimitStore } from "./redis-rate-limit-store.js";
 import { registerAiRoutes } from "./routes/ai-routes.js";
+import { registerBloodPressureRoutes } from "./routes/blood-pressure-routes.js";
 import { registerAiVoiceRoutes } from "./routes/ai-voice-routes.js";
 import { registerAndroidIntegrityRoutes } from "./routes/android-integrity-routes.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
@@ -267,6 +268,7 @@ export async function buildApi(
   await registerCareRoutes(app);
   await registerPulseRoutes(app);
   await registerTogetherRoutes(app);
+  await registerBloodPressureRoutes(app);
   await registerAiRoutes(app);
   await registerAiVoiceRoutes(app);
   await registerPrivacyRoutes(app);

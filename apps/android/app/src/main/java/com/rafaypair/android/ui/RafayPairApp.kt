@@ -129,6 +129,7 @@ import com.rafaypair.android.RafayPairApplication
 import com.rafaypair.android.ui.together.TogetherScreen
 import com.rafaypair.android.ui.together.TogetherViewModel
 import com.rafaypair.android.ui.together.VoiceSessionViewModel
+import com.rafaypair.android.ui.vitals.BloodPressureViewModel
 import com.rafaypair.android.ui.vitals.VitalsScreen
 import com.rafaypair.android.ui.workout.WorkoutScreen
 import com.rafaypair.android.ui.workout.WorkoutViewModel
@@ -383,7 +384,14 @@ private fun SignedInScreen(
                     AppTab.HOME -> HomeScreen(user, state, viewModel, { confirmDisconnect = true })
                     AppTab.MOVE -> MoveTab()
                     AppTab.TOGETHER -> TogetherTab(user, state)
-                    AppTab.VITALS -> VitalsScreen()
+                    AppTab.VITALS -> VitalsScreen(
+                        bloodPressureViewModel = viewModel(
+                            factory = BloodPressureViewModel.Factory(
+                                (LocalContext.current.applicationContext as RafayPairApplication)
+                                    .container.api,
+                            ),
+                        ),
+                    )
                     AppTab.CARE -> CareScreen(state, viewModel)
                     AppTab.CONSENT -> ConsentScreen(state, viewModel)
                     AppTab.ACCOUNT -> AccountScreen(user, state, viewModel)

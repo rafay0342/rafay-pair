@@ -67,7 +67,10 @@ import kotlinx.coroutines.delay
  * is stated as unsupported rather than quietly absent.
  */
 @Composable
-fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
+fun VitalsScreen(
+    bloodPressureViewModel: BloodPressureViewModel,
+    viewModel: VitalsViewModel = viewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -169,7 +172,7 @@ fun VitalsScreen(viewModel: VitalsViewModel = viewModel()) {
         if (PhysiologyTuning.FACE_RPPG_ENABLED) {
             FaceRppgCard(context = context, lifecycleOwner = lifecycleOwner)
         }
-        BloodPressureCard()
+        BloodPressureCard(bloodPressureViewModel)
     }
 }
 
@@ -570,27 +573,3 @@ private fun BreathingCard(
     }
 }
 
-@Composable
-private fun BloodPressureCard() {
-    Card {
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Blood pressure", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "RafayPair does not estimate blood pressure. A phone camera cannot measure " +
-                    "it, and no amount of processing changes that.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "If you track it, use the cuff and the app that came with it. RafayPair " +
-                    "holds no blood pressure value of its own, and does not read one from " +
-                    "Health Connect.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}

@@ -343,3 +343,55 @@ data class AiVoiceTicketDto(
     val webSocketUrl: String,
     val audio: AiVoiceAudioFormatDto,
 )
+
+// MARK: - Blood pressure
+
+/**
+ * Blood pressure the user brings, never blood pressure this app derives.
+ *
+ * Master specification §5: the only two sources are a reading typed from a real
+ * cuff and a record imported from Health Connect with its origin preserved.
+ */
+@Serializable
+data class BloodPressureReadingDto(
+    val id: String,
+    val systolic: Int,
+    val diastolic: Int,
+    val pulseBpm: Int? = null,
+    val source: String,
+    val measurementKind: String,
+    /** Where an imported record came from. Absent for a typed reading. */
+    val externalOrigin: String? = null,
+    val measuredAt: String,
+    val note: String? = null,
+    val createdAt: String,
+)
+
+@Serializable
+data class BloodPressureListResponseDto(
+    val readings: List<BloodPressureReadingDto> = emptyList(),
+    val limit: Int,
+)
+
+@Serializable
+data class BloodPressureResponseDto(val reading: BloodPressureReadingDto)
+
+@Serializable
+data class RecordBloodPressureRequestDto(
+    val systolic: Int,
+    val diastolic: Int,
+    val pulseBpm: Int? = null,
+    val measuredAt: String,
+    val note: String? = null,
+)
+
+@Serializable
+data class ImportBloodPressureRequestDto(
+    val systolic: Int,
+    val diastolic: Int,
+    val pulseBpm: Int? = null,
+    val measuredAt: String,
+    val note: String? = null,
+    val externalOrigin: String,
+    val externalRecordId: String,
+)

@@ -15,6 +15,7 @@ struct RootView: View {
     let together: any TogetherRepository
     let assistant: any AssistantRepository
     let voice: VoiceClient
+    let bloodPressure: any BloodPressureRepository
     @State private var preparedAccountID: UUID?
     @State private var accountPreparationComplete = false
 
@@ -40,7 +41,8 @@ struct RootView: View {
                         appAttest: appAttest,
                         together: together,
                         assistant: assistant,
-                        voice: voice
+                        voice: voice,
+                        bloodPressure: bloodPressure
                     )
                 } else {
                     LaunchView()
