@@ -82,7 +82,12 @@ export async function registerAiVoiceRoutes(
           ticket: issued.ticket,
           expiresAt: issued.expiresAt.toISOString(),
           webSocketUrl: socketUrl.toString(),
-          audio: { encoding: "pcm16", sampleRateHz: 16_000, channels: 1 },
+          audio: {
+            encoding: "pcm16",
+            sampleRateHz: 16_000,
+            outputSampleRateHz: 24_000,
+            channels: 1,
+          },
         }),
       );
     },

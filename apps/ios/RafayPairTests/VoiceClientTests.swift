@@ -18,7 +18,12 @@ final class VoiceClientTests: XCTestCase {
             ticket: value,
             expiresAt: Date().addingTimeInterval(30),
             webSocketUrl: URL(string: url)!,
-            audio: AiVoiceAudioFormat(encoding: "pcm16", sampleRateHz: 16_000, channels: 1)
+            audio: AiVoiceAudioFormat(
+                encoding: "pcm16",
+                sampleRateHz: 16_000,
+                outputSampleRateHz: 24_000,
+                channels: 1
+            )
         )
     }
 

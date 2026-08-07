@@ -1,6 +1,8 @@
 # Backend-only Qwen provider contract
 
-This is a planning contract for Phase E / the fourth native binary milestone. Gate 1 does not load these values and exposes no AI runtime route. Adding the variables to a developer environment does not enable AI.
+Implemented in Gate 4. `apps/api/src/ai/provider.ts` reads these values and nothing else does; `apps/api/src/routes/ai-voice-routes.ts` is the only place the provider is opened. When they are absent the deployment reports voice unavailable and refuses to open a socket rather than returning plausible audio.
+
+To obtain them: create an Alibaba Cloud Model Studio workspace in the Singapore (`ap-southeast-1`) region, generate a Model Studio API key inside that workspace, and copy the workspace identifier from its console URL. Only `DASHSCOPE_API_KEY` is secret; the model and region are fixed allowlisted strings that the server refuses to accept any other value for.
 
 ## Configuration
 

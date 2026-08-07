@@ -439,10 +439,17 @@ export const aiVoiceTicketResponseSchema = z.object({
   ticket: realtimeTicketSchema,
   expiresAt: z.string().datetime(),
   webSocketUrl: z.string(),
-  /** Sample rate and framing the client must send. Server-stated, not negotiated. */
+  /**
+   * Framing the client must send and expect. Server-stated, not negotiated.
+   *
+   * Capture and playback are different rates because the provider's are: input
+   * is 16 kHz and generated speech comes back at 24 kHz. Playing the reply at
+   * the capture rate would pitch the assistant's voice down.
+   */
   audio: z.object({
     encoding: z.literal("pcm16"),
     sampleRateHz: z.literal(16_000),
+    outputSampleRateHz: z.literal(24_000),
     channels: z.literal(1),
   }),
 });

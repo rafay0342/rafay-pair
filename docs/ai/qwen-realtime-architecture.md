@@ -1,6 +1,6 @@
 # Qwen realtime architecture
 
-This is the planned Phase E / fourth-milestone architecture. Gate 1 exposes no AI runtime. RafayPair selects Alibaba Cloud Model Studio Qwen as its exclusive AI provider and plans to use `qwen3.5-omni-plus-realtime` in the Singapore region. The production endpoint is workspace-specific. `DASHSCOPE_API_KEY` exists only in the backend secret manager.
+Implemented in Gate 4; the broker, the socket, and both native clients are built. RafayPair selects Alibaba Cloud Model Studio Qwen as its exclusive AI provider and uses `qwen3.5-omni-plus-realtime` in the Singapore region. The production endpoint is workspace-specific. `DASHSCOPE_API_KEY` exists only in the backend secret manager.
 
 Qwen realtime WebSocket and WebRTC connections authenticate during connection establishment. Model Studio also documents short-lived temporary API keys, but those credentials inherit the issuing key's permissions and are not RafayPair authorization. RafayPair therefore keeps an authenticated backend WebSocket broker as the universal authorization and tool boundary. The broker validates audio/event shape, rate limits sessions, filters consent-approved context, meters usage, handles interruption, and forwards Qwen events. A future direct media transport may be enabled only after the earlier delivery gates close, with a server-issued short-lived credential and a design that cannot bypass backend context or tool authorization; otherwise it remains disabled.
 

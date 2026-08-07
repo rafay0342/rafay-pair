@@ -324,6 +324,11 @@ data class AiSessionResponseDto(val session: AiSessionDto? = null)
 data class AiVoiceAudioFormatDto(
     val encoding: String,
     val sampleRateHz: Int,
+    /**
+     * Generated speech comes back at a higher rate than capture. Playing it at
+     * the capture rate would pitch the assistant's voice down.
+     */
+    val outputSampleRateHz: Int,
     val channels: Int,
 )
 

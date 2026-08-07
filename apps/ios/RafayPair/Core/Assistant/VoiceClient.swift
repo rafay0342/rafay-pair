@@ -150,7 +150,10 @@ actor VoiceClient {
         socket = task
         task.resume()
         receive()
-        try await audio.start(sampleRate: Double(ticket.audio.sampleRateHz)) { [weak self] pcm in
+        try await audio.start(
+            captureSampleRate: Double(ticket.audio.sampleRateHz),
+            playbackSampleRate: Double(ticket.audio.outputSampleRateHz)
+        ) { [weak self] pcm in
             Task { await self?.send(pcm: pcm) }
         }
     }
@@ -274,7 +277,11 @@ actor VoiceAudioIO {
 
     func isRunning() -> Bool { running }
 
-    func start(sampleRate: Double, onFrame: @escaping @Sendable (Data) -> Void) async throws {
+    func start(
+        captureSampleRate: Double,
+        playbackSampleRate: Double,
+        onFrame: @escaping @Sendable (Data) -> Void
+    ) async throws {
         guard !running else { return }
 
         let audioSession = AVAudioSession.sharedInstance()
@@ -286,11 +293,14 @@ actor VoiceAudioIO {
         guard
             let wire = AVAudioFormat(
                 commonFormat: .pcmFormatInt16,
-                sampleRate: sampleRate,
+                sampleRate: captureSampleRate,
                 channels: 1,
                 interleaved: true
             ),
-            let playback = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)
+            let playback = AVAudioFormat(
+                standardFormatWithSampleRate: playbackSampleRate,
+                channels: 1
+            )
         else {
             throw APIError.invalidConfiguration
         }

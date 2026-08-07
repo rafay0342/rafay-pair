@@ -165,7 +165,7 @@ class VoiceClient(
 
         val listener = object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                startAudio(ticket.audio.sampleRateHz)
+                startAudio(ticket.audio.sampleRateHz, ticket.audio.outputSampleRateHz)
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -215,7 +215,7 @@ class VoiceClient(
         socket?.send("""{"type":"$type","callId":"$callId"}""")
     }
 
-    private fun startAudio(sampleRateHz: Int) {
+    private fun startAudio(sampleRateHz: Int, outputSampleRateHz: Int) {
         if (record != null) return
         val minimum = AudioRecord.getMinBufferSize(
             sampleRateHz,
@@ -259,7 +259,7 @@ class VoiceClient(
             .setAudioFormat(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(sampleRateHz)
+                    .setSampleRate(outputSampleRateHz)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build(),
             )
@@ -267,7 +267,7 @@ class VoiceClient(
             .setBufferSizeInBytes(
                 maxOf(
                     AudioTrack.getMinBufferSize(
-                        sampleRateHz,
+                        outputSampleRateHz,
                         AudioFormat.CHANNEL_OUT_MONO,
                         AudioFormat.ENCODING_PCM_16BIT,
                     ),

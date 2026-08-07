@@ -397,6 +397,9 @@ struct AiSession: Codable, Sendable, Identifiable {
 struct AiVoiceAudioFormat: Codable, Sendable {
     let encoding: String
     let sampleRateHz: Int
+    /// Generated speech comes back at a higher rate than capture. Playing it at
+    /// the capture rate would pitch the assistant's voice down.
+    let outputSampleRateHz: Int
     let channels: Int
 }
 
