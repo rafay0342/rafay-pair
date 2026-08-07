@@ -12,6 +12,8 @@
 		090D67FBAD28B7CA153EDBD0 /* CareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EB86585AC475450E7745102 /* CareView.swift */; };
 		0FC6783D2350CB92348BF9CE /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA7A1CA288E102D133697809 /* APIError.swift */; };
 		1304206FB420233A7E5B939E /* RealtimeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F2384DC63024D7B1451C00 /* RealtimeStore.swift */; };
+		16E6193743C50AC9284EB7EC /* PhysiologyEngines.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */; };
+		185F4C449EBDD982148B9B6C /* PhysiologyGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B28189925C20CC1B2167BE8 /* PhysiologyGoldenTests.swift */; };
 		1AA7766F3524062027A46BF7 /* AppAttestCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 916B854C238515999593C88B /* AppAttestCoordinator.swift */; };
 		2F3DE158570054FF4629D31E /* PairSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DC768CE39517FBB2FF47D74 /* PairSetupView.swift */; };
 		3027695FDDCB8985857AAD17 /* RafayPairApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAF4E8C89A44E77B6336C5AD /* RafayPairApp.swift */; };
@@ -30,12 +32,14 @@
 		572B1EB66B184E051146E0E6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 69812CE577B8C0FB11EE0A35 /* Assets.xcassets */; };
 		579B1B45643C4CB96E4A5521 /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44BA7CEC8D9AE690DB5D59DC /* WorkoutStore.swift */; };
 		5B8B84ADBD697F067D07CD5B /* PoseGoldenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DE173B4507B8A2A485F73B /* PoseGoldenTests.swift */; };
+		5EC3C8F499E8B73DD5A62638 /* SignalCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EF139D2493F873FE4749F93 /* SignalCore.swift */; };
 		5FEC91E725C2F8291E16C664 /* PairStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DAE67BB6CCC81D5D0411B1 /* PairStore.swift */; };
 		63A855FBB5D5FE9EF9C7B501 /* PoseGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E805BB01585F9DACD87A5B34 /* PoseGeometry.swift */; };
 		63C5D35F0D8E164B954BD375 /* NotificationStateVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30705699D60ACAF7261AC5F /* NotificationStateVault.swift */; };
 		6A4F7F5B026ACDCF69C4463D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1005EF55FF9B367088683D5 /* HomeView.swift */; };
 		6BE7F11609BB34063EF12463 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AB11B554236F3CEEAE1451 /* APIClient.swift */; };
 		7914D5DA36AC8ABE3E24C1D4 /* golden in Resources */ = {isa = PBXBuildFile; fileRef = 7A86979FF37B4FEAB688A1A5 /* golden */; };
+		7C3C0AFCB1B837B4E8A6520D /* PhysiologyTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */; };
 		7DD74683B3D616469DC3FAFE /* ConsentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6344CE5FDBE98BE852796A0A /* ConsentStore.swift */; };
 		7EE54894D6A55C3D60327BAF /* AppAttestModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 887722D614A0491A7C2EA224 /* AppAttestModels.swift */; };
 		8AC4D749FAA8B4BEE8B86612 /* Repositories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ED4E5919F0E0C4A26D1DA31 /* Repositories.swift */; };
@@ -99,6 +103,7 @@
 		71AB11B554236F3CEEAE1451 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		7A86979FF37B4FEAB688A1A5 /* golden */ = {isa = PBXFileReference; lastKnownFileType = folder; name = golden; path = ../../tests/golden; sourceTree = SOURCE_ROOT; };
 		7BB4DA1B30F1629BD0340CE0 /* TokenVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenVault.swift; sourceTree = "<group>"; };
+		7EF139D2493F873FE4749F93 /* SignalCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalCore.swift; sourceTree = "<group>"; };
 		840C8E738713E58ABA24419B /* CareStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareStore.swift; sourceTree = "<group>"; };
 		85B6438FB6837DC7D3F509BA /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		887722D614A0491A7C2EA224 /* AppAttestModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestModels.swift; sourceTree = "<group>"; };
@@ -110,10 +115,12 @@
 		916B854C238515999593C88B /* AppAttestCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestCoordinator.swift; sourceTree = "<group>"; };
 		9230ABA79DA160A6CB423F16 /* RafayPairTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RafayPairTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9703A37EC9AE9EA3168DFC3F /* Development.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Development.xcconfig; sourceTree = "<group>"; };
+		9B28189925C20CC1B2167BE8 /* PhysiologyGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyGoldenTests.swift; sourceTree = "<group>"; };
 		A050E6F37F9822C2031FA3B0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		A7356C53A5C94AFC5F2DE163 /* CareDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CareDraft.swift; sourceTree = "<group>"; };
 		A81882F86E66CA73F11BC9EB /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
 		A81E50AE1287A136AC71A880 /* PushNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationService.swift; sourceTree = "<group>"; };
+		AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyEngines.swift; sourceTree = "<group>"; };
 		B45A8C888FB1CD1D6B2F9DFD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B529A1E3ABDF0D84CCBB505B /* AppAttestKeyIDVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestKeyIDVault.swift; sourceTree = "<group>"; };
 		BA7A1CA288E102D133697809 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
@@ -130,6 +137,7 @@
 		E8DE173B4507B8A2A485F73B /* PoseGoldenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseGoldenTests.swift; sourceTree = "<group>"; };
 		E8F8E62A400421AE0387D44F /* AppAttestCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestCoordinatorTests.swift; sourceTree = "<group>"; };
 		F1837BF6C8FA93BCC8927C12 /* RealtimeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeClient.swift; sourceTree = "<group>"; };
+		F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysiologyTypes.swift; sourceTree = "<group>"; };
 		F76FD52B2E4F7005BA74E417 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		FCA96A2F2E56A2A9B8353540 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -305,6 +313,16 @@
 			path = Authentication;
 			sourceTree = "<group>";
 		};
+		AC6F507768E8A07CE7236562 /* Physiology */ = {
+			isa = PBXGroup;
+			children = (
+				AAD626C55AADA9F1DF0921C4 /* PhysiologyEngines.swift */,
+				F519419FCF952AD97AAF19D1 /* PhysiologyTypes.swift */,
+				7EF139D2493F873FE4749F93 /* SignalCore.swift */,
+			);
+			path = Physiology;
+			sourceTree = "<group>";
+		};
 		B49ABC3AC5552F590FF29DDD /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -364,6 +382,7 @@
 			children = (
 				5DA3A08404BF877CAA1DC2FE /* APIModelsTests.swift */,
 				E8F8E62A400421AE0387D44F /* AppAttestCoordinatorTests.swift */,
+				9B28189925C20CC1B2167BE8 /* PhysiologyGoldenTests.swift */,
 				E8DE173B4507B8A2A485F73B /* PoseGoldenTests.swift */,
 				6266C14966FB8962D25E7A66 /* PrivacyAndCareStateTests.swift */,
 				0C088111388D3F9993E3DDF3 /* PushNotificationTests.swift */,
@@ -401,6 +420,7 @@
 				864F310DF540653D3F656DB5 /* Integrity */,
 				4A2692B7FB2CAE3A8067ED24 /* Notifications */,
 				9C5AF99D86F1AB9367127D02 /* Persistence */,
+				AC6F507768E8A07CE7236562 /* Physiology */,
 				5037672E4062B5DDA4AD612E /* Pose */,
 				49B0B8009E79AF56DE16EC78 /* Realtime */,
 			);
@@ -573,6 +593,7 @@
 			files = (
 				07B9E6C748614BF2C72EFF5A /* APIModelsTests.swift in Sources */,
 				380F65522BE23DDBF31A9AAE /* AppAttestCoordinatorTests.swift in Sources */,
+				185F4C449EBDD982148B9B6C /* PhysiologyGoldenTests.swift in Sources */,
 				5B8B84ADBD697F067D07CD5B /* PoseGoldenTests.swift in Sources */,
 				91C34D3B5D203DA7D0E645B7 /* PrivacyAndCareStateTests.swift in Sources */,
 				A5A862BAB8111B068E231130 /* PushNotificationTests.swift in Sources */,
@@ -605,6 +626,8 @@
 				63C5D35F0D8E164B954BD375 /* NotificationStateVault.swift in Sources */,
 				2F3DE158570054FF4629D31E /* PairSetupView.swift in Sources */,
 				5FEC91E725C2F8291E16C664 /* PairStore.swift in Sources */,
+				16E6193743C50AC9284EB7EC /* PhysiologyEngines.swift in Sources */,
+				7C3C0AFCB1B837B4E8A6520D /* PhysiologyTypes.swift in Sources */,
 				9E620344CD1C865901390613 /* PoseCaptureSession.swift in Sources */,
 				39F3C4A49068993C3FD1A17A /* PoseEngine.swift in Sources */,
 				63A855FBB5D5FE9EF9C7B501 /* PoseGeometry.swift in Sources */,
@@ -620,6 +643,7 @@
 				45590DCDA7C0FA65309383FF /* RootView.swift in Sources */,
 				AD1DC6C183EAE199B4C9EBBC /* SessionStore.swift in Sources */,
 				3AC9575CBF869D75E318B976 /* SettingsView.swift in Sources */,
+				5EC3C8F499E8B73DD5A62638 /* SignalCore.swift in Sources */,
 				5331C5000B47166CD8D77373 /* TokenVault.swift in Sources */,
 				579B1B45643C4CB96E4A5521 /* WorkoutStore.swift in Sources */,
 				4C82ECC03CDE0E62C47DC2FD /* WorkoutView.swift in Sources */,
