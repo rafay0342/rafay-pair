@@ -37,11 +37,13 @@
     "google-auth-library": "11.0.0",
     "pg": "8.22.0",
     "redis": "6.2.0",
+    "ws": "8.21.3",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
     "@types/pg": "8.20.4",
+    "@types/ws": "8.18.1",
     "tsx": "4.23.9",
     "typescript": "7.0.2",
     "vitest": "4.1.10"

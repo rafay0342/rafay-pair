@@ -9,3 +9,6 @@ allowBuilds:
   argon2: true
   esbuild: true
   protobufjs: false
+
+minimumReleaseAgeExclude:
+  - ws@8.21.3
