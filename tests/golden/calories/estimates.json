@@ -1,0 +1,179 @@
+{
+  "encoding": "Pulse samples are [timestampMs, red, green]; breathing samples are [timestampMs, chestOffset, tracked as 1 or 0].",
+  "tolerance": 0.000001,
+  "specification": "engines/signal-quality/SPEC.md, engines/pulse-estimation-spec/SPEC.md, engines/breathing-estimation-spec/SPEC.md, engines/calorie-estimation-spec/SPEC.md",
+  "cases": [
+    {
+      "name": "squats-with-body-mass",
+      "note": "Full inputs; the narrowest band the method allows.",
+      "input": {
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60,
+        "bodyMassKg": 74
+      },
+      "expected": {
+        "estimatedKcal": 32.7,
+        "algorithmVersion": "1.0.0",
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60,
+        "met": 5.300000000000001,
+        "bodyMassKg": 74,
+        "inputsUsed": [
+          "duration",
+          "repetitions",
+          "bodyMass"
+        ],
+        "confidenceBand": {
+          "lowKcal": 24.5,
+          "highKcal": 40.9,
+          "label": "moderate"
+        }
+      }
+    },
+    {
+      "name": "squats-without-body-mass",
+      "note": "No body mass supplied; the placeholder widens the band.",
+      "input": {
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60
+      },
+      "expected": {
+        "estimatedKcal": 30.9,
+        "algorithmVersion": "1.0.0",
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60,
+        "met": 5.300000000000001,
+        "bodyMassKg": 70,
+        "inputsUsed": [
+          "duration",
+          "repetitions"
+        ],
+        "confidenceBand": {
+          "lowKcal": 17,
+          "highKcal": 44.8,
+          "label": "wide"
+        }
+      }
+    },
+    {
+      "name": "squats-low-pose-confidence",
+      "note": "Weak pose tracking widens the band further.",
+      "input": {
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60,
+        "bodyMassKg": 74,
+        "poseConfidence": 0.3
+      },
+      "expected": {
+        "estimatedKcal": 32.7,
+        "algorithmVersion": "1.0.0",
+        "activity": "squat",
+        "durationMs": 300000,
+        "repetitions": 60,
+        "met": 5.300000000000001,
+        "bodyMassKg": 74,
+        "inputsUsed": [
+          "duration",
+          "repetitions",
+          "bodyMass",
+          "poseConfidence"
+        ],
+        "confidenceBand": {
+          "lowKcal": 19.6,
+          "highKcal": 45.8,
+          "label": "wide"
+        }
+      }
+    },
+    {
+      "name": "fast-burst-short-session",
+      "note": "A high repetition rate in a short session; the intensity clamp binds.",
+      "input": {
+        "activity": "squat",
+        "durationMs": 30000,
+        "repetitions": 25,
+        "bodyMassKg": 80
+      },
+      "expected": {
+        "estimatedKcal": 4.3,
+        "algorithmVersion": "1.0.0",
+        "activity": "squat",
+        "durationMs": 30000,
+        "repetitions": 25,
+        "met": 6.499999999999999,
+        "bodyMassKg": 80,
+        "inputsUsed": [
+          "duration",
+          "repetitions",
+          "bodyMass"
+        ],
+        "confidenceBand": {
+          "lowKcal": 2.8,
+          "highKcal": 5.8,
+          "label": "wide"
+        }
+      }
+    },
+    {
+      "name": "guided-breathing-session",
+      "note": "A near-resting activity with no repetitions.",
+      "input": {
+        "activity": "guidedBreathing",
+        "durationMs": 600000,
+        "bodyMassKg": 68
+      },
+      "expected": {
+        "estimatedKcal": 14.7,
+        "algorithmVersion": "1.0.0",
+        "activity": "guidedBreathing",
+        "durationMs": 600000,
+        "repetitions": 0,
+        "met": 1.3,
+        "bodyMassKg": 68,
+        "inputsUsed": [
+          "duration",
+          "bodyMass"
+        ],
+        "confidenceBand": {
+          "lowKcal": 11,
+          "highKcal": 18.4,
+          "label": "moderate"
+        }
+      }
+    },
+    {
+      "name": "zero-length-session",
+      "note": "Zero is the honest answer; the band is at its widest.",
+      "input": {
+        "activity": "squat",
+        "durationMs": 0,
+        "repetitions": 0,
+        "bodyMassKg": 70
+      },
+      "expected": {
+        "estimatedKcal": 0,
+        "algorithmVersion": "1.0.0",
+        "activity": "squat",
+        "durationMs": 0,
+        "repetitions": 0,
+        "met": 5,
+        "bodyMassKg": 70,
+        "inputsUsed": [
+          "duration",
+          "repetitions",
+          "bodyMass"
+        ],
+        "confidenceBand": {
+          "lowKcal": 0,
+          "highKcal": 0,
+          "label": "veryWide"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+/**
+ * Canonical types for the physiology engines.
+ *
+ * Normative definitions live in `engines/signal-quality/SPEC.md`,
+ * `engines/pulse-estimation-spec/SPEC.md`,
+ * `engines/breathing-estimation-spec/SPEC.md`, and
+ * `engines/calorie-estimation-spec/SPEC.md`. This package is the TypeScript
+ * reference implementation; iOS and Android implement the same specifications
+ * independently.
+ */
+
+export type QualityBand = "poor" | "fair" | "good";
+export type ConfidenceBand = "low" | "moderate" | "high";
+
+export interface SignalQuality {
+  readonly score: number;
+  readonly band: QualityBand;
+  readonly coverage: number;
+  readonly motion: number;
+  readonly periodicity: number;
+  readonly amplitude: number;
+  readonly stability: number;
+}
+
+/**
+ * A single frame reduced to the two channel means the estimator needs. Raw
+ * frames are never retained; the capture layer produces these and releases the
+ * buffer.
+ */
+export interface PulseSample {
+  readonly timestampMs: number;
+  /** Mean red channel over the region of interest, `0…255`. */
+  readonly red: number;
+  /** Mean green channel over the region of interest, `0…255`. */
+  readonly green: number;
+}
+
+export type PulseRejectionReason =
+  | "tooShort"
+  | "fingerNotDetected"
+  | "excessiveMotion"
+  | "noPeriodicity"
+  | "unstable"
+  | "outOfRange";
+
+/**
+ * Provenance is part of the type, not a convention. There is no variant that can
+ * carry a measured-grade reading, so nothing downstream can promote an estimate.
+ */
+export interface MeasuredPulse {
+  readonly status: "measured";
+  readonly bpm: number;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly effectiveSampleRateHz: number;
+  readonly quality: SignalQuality;
+  readonly confidence: number;
+  readonly confidenceBand: ConfidenceBand;
+  readonly source: "phone_camera_ppg";
+  readonly kind: "app_estimated";
+  readonly measuredAtMs: number;
+}
+
+export interface RejectedPulse {
+  readonly status: "rejected";
+  readonly reason: PulseRejectionReason;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly quality: SignalQuality;
+}
+
+export type PulseResult = MeasuredPulse | RejectedPulse;
+
+/** One frame of the pose-derived breathing signal. */
+export interface BreathingSample {
+  readonly timestampMs: number;
+  /** Shoulder-centre height divided by torso scale; distance-invariant. */
+  readonly chestOffset: number;
+  /** Whether the pose engine considered the source frame valid. */
+  readonly tracked: boolean;
+}
+
+export type BreathingRejectionReason =
+  | "tooShort"
+  | "notTracked"
+  | "excessiveMotion"
+  | "noPeriodicity"
+  | "unstable"
+  | "outOfRange";
+
+export interface MeasuredBreathing {
+  readonly status: "measured";
+  readonly breathsPerMinute: number;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly effectiveSampleRateHz: number;
+  readonly quality: SignalQuality;
+  readonly confidence: number;
+  readonly confidenceBand: ConfidenceBand;
+  readonly source: "phone_camera_motion";
+  readonly kind: "app_estimated";
+  readonly measuredAtMs: number;
+}
+
+export interface RejectedBreathing {
+  readonly status: "rejected";
+  readonly reason: BreathingRejectionReason;
+  readonly durationMs: number;
+  readonly sampleCount: number;
+  readonly quality: SignalQuality;
+}
+
+export type BreathingResult = MeasuredBreathing | RejectedBreathing;
+
+export interface BreathingPattern {
+  readonly inhaleMs: number;
+  readonly holdMs: number;
+  readonly exhaleMs: number;
+  readonly holdAfterMs: number;
+  readonly cycles: number;
+}
+
+export type BreathingPhase =
+  "inhale" | "hold" | "exhale" | "holdAfter" | "complete";
+
+export interface BreathingPhaseState {
+  readonly phase: BreathingPhase;
+  readonly cycleIndex: number;
+  /** Progress through the current phase, `0…1`. Always 1 when complete. */
+  readonly progress: number;
+  readonly remainingMs: number;
+}
+
+export type CalorieActivity =
+  "rest" | "guidedBreathing" | "squat" | "bodyweightMixed" | "walkingInPlace";
+
+export type CalorieInput =
+  "duration" | "repetitions" | "bodyMass" | "poseConfidence";
+
+export type CalorieBandLabel = "moderate" | "wide" | "veryWide";
+
+export interface CalorieEstimateInput {
+  readonly activity: CalorieActivity;
+  readonly durationMs: number;
+  readonly repetitions?: number;
+  /** Only present when the user chose to provide it. */
+  readonly bodyMassKg?: number;
+  readonly poseConfidence?: number;
+}
+
+export interface CalorieEstimate {
+  readonly estimatedKcal: number;
+  readonly algorithmVersion: string;
+  readonly activity: CalorieActivity;
+  readonly durationMs: number;
+  readonly repetitions: number;
+  readonly met: number;
+  readonly bodyMassKg: number;
+  readonly inputsUsed: readonly CalorieInput[];
+  readonly confidenceBand: {
+    readonly lowKcal: number;
+    readonly highKcal: number;
+    readonly label: CalorieBandLabel;
+  };
+}

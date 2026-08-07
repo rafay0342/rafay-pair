@@ -1,0 +1,365 @@
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+import {
+  estimateBreathing,
+  phaseAt,
+  BOX_PATTERN,
+  CALM_PATTERN,
+} from "./breathingEngine.js";
+import { estimateCalories } from "./calorieEngine.js";
+import { PULSE_FRESHNESS_MS } from "./constants.js";
+import { isPulseFresh, pulseAgeMs } from "./freshness.js";
+import { estimatePulse } from "./pulseEngine.js";
+import type {
+  BreathingResult,
+  BreathingSample,
+  CalorieEstimate,
+  CalorieEstimateInput,
+  MeasuredPulse,
+  PulseResult,
+  PulseSample,
+  SignalQuality,
+} from "./types.js";
+
+const goldenRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../../tests/golden",
+);
+
+function readJson<T>(...segments: string[]): T {
+  return JSON.parse(
+    readFileSync(path.join(goldenRoot, ...segments), "utf8"),
+  ) as T;
+}
+
+interface PulseVector {
+  readonly name: string;
+  readonly measuredAtMs: number;
+  readonly samples: readonly [number, number, number][];
+  readonly expected: PulseResult;
+}
+
+interface BreathingVector {
+  readonly name: string;
+  readonly measuredAtMs: number;
+  readonly samples: readonly [number, number, number][];
+  readonly expected: BreathingResult;
+}
+
+function toPulseSamples(
+  packed: readonly [number, number, number][],
+): PulseSample[] {
+  return packed.map(([timestampMs, red, green]) => ({
+    timestampMs,
+    red,
+    green,
+  }));
+}
+
+function toBreathingSamples(
+  packed: readonly [number, number, number][],
+): BreathingSample[] {
+  return packed.map(([timestampMs, chestOffset, tracked]) => ({
+    timestampMs,
+    chestOffset,
+    tracked: tracked === 1,
+  }));
+}
+
+const NUMERIC_QUALITY_KEYS = [
+  "score",
+  "coverage",
+  "motion",
+  "periodicity",
+  "amplitude",
+  "stability",
+] as const;
+
+function expectQuality(
+  actual: { readonly quality: SignalQuality },
+  expected: { readonly quality: SignalQuality },
+  label: string,
+): void {
+  expect(actual.quality.band, label).toBe(expected.quality.band);
+  for (const key of NUMERIC_QUALITY_KEYS) {
+    expect(actual.quality[key], `${label}.${key}`).toBeCloseTo(
+      expected.quality[key],
+      6,
+    );
+  }
+}
+
+describe("pulse golden vectors", () => {
+  const files = readdirSync(path.join(goldenRoot, "pulse")).sort();
+
+  it("covers both outcomes and every rejection reason that can be provoked", () => {
+    const outcomes = new Set<string>();
+    for (const file of files) {
+      const vector = readJson<PulseVector>("pulse", file);
+      outcomes.add(
+        vector.expected.status === "measured"
+          ? "measured"
+          : vector.expected.reason,
+      );
+    }
+    expect(outcomes).toContain("measured");
+    expect(outcomes).toContain("tooShort");
+    expect(outcomes).toContain("fingerNotDetected");
+    expect(outcomes).toContain("excessiveMotion");
+    expect(outcomes).toContain("noPeriodicity");
+  });
+
+  for (const file of files) {
+    it(file, () => {
+      const vector = readJson<PulseVector>("pulse", file);
+      const actual = estimatePulse(
+        toPulseSamples(vector.samples),
+        vector.measuredAtMs,
+      );
+      const expected = vector.expected;
+
+      expect(actual.status, vector.name).toBe(expected.status);
+      expect(actual.sampleCount, vector.name).toBe(expected.sampleCount);
+      expect(actual.durationMs, vector.name).toBeCloseTo(
+        expected.durationMs,
+        6,
+      );
+      expectQuality(actual, expected, vector.name);
+
+      if (actual.status === "measured" && expected.status === "measured") {
+        expect(actual.bpm, vector.name).toBeCloseTo(expected.bpm, 6);
+        expect(actual.confidence, vector.name).toBeCloseTo(
+          expected.confidence,
+          6,
+        );
+        expect(actual.confidenceBand, vector.name).toBe(
+          expected.confidenceBand,
+        );
+        expect(actual.effectiveSampleRateHz, vector.name).toBeCloseTo(
+          expected.effectiveSampleRateHz,
+          6,
+        );
+        // Provenance is structural: there is no variant that could carry a
+        // measured-grade reading.
+        expect(actual.source).toBe("phone_camera_ppg");
+        expect(actual.kind).toBe("app_estimated");
+      }
+      if (actual.status === "rejected" && expected.status === "rejected") {
+        expect(actual.reason, vector.name).toBe(expected.reason);
+      }
+    });
+  }
+
+  it("recovers the synthesised rate rather than a subharmonic of it", () => {
+    // The octave error is the failure mode that would fabricate a plausible
+    // number, so the vectors assert the true rate, not merely self-consistency.
+    const truths: Record<string, number> = {
+      "clean-72bpm.json": 72,
+      "clean-58bpm.json": 58,
+      "post-exercise-124bpm.json": 124,
+      "low-perfusion-88bpm.json": 88,
+    };
+    for (const [file, truth] of Object.entries(truths)) {
+      const vector = readJson<PulseVector>("pulse", file);
+      expect(vector.expected.status, file).toBe("measured");
+      if (vector.expected.status !== "measured") continue;
+      expect(Math.abs(vector.expected.bpm - truth), file).toBeLessThan(2);
+    }
+  });
+});
+
+describe("breathing golden vectors", () => {
+  const files = readdirSync(path.join(goldenRoot, "breathing")).sort();
+
+  for (const file of files) {
+    it(file, () => {
+      const vector = readJson<BreathingVector>("breathing", file);
+      const actual = estimateBreathing(
+        toBreathingSamples(vector.samples),
+        vector.measuredAtMs,
+      );
+      const expected = vector.expected;
+
+      expect(actual.status, vector.name).toBe(expected.status);
+      expect(actual.sampleCount, vector.name).toBe(expected.sampleCount);
+      expectQuality(actual, expected, vector.name);
+
+      if (actual.status === "measured" && expected.status === "measured") {
+        expect(actual.breathsPerMinute, vector.name).toBeCloseTo(
+          expected.breathsPerMinute,
+          6,
+        );
+        expect(actual.confidenceBand, vector.name).toBe(
+          expected.confidenceBand,
+        );
+        expect(actual.source).toBe("phone_camera_motion");
+        expect(actual.kind).toBe("app_estimated");
+      }
+      if (actual.status === "rejected" && expected.status === "rejected") {
+        expect(actual.reason, vector.name).toBe(expected.reason);
+      }
+    });
+  }
+
+  it("recovers the synthesised respiratory rate", () => {
+    const truths: Record<string, number> = {
+      "calm-12-breaths.json": 12,
+      "slow-8-breaths.json": 8,
+      "elevated-20-breaths.json": 20,
+      "fidgeting-but-recoverable.json": 14,
+    };
+    for (const [file, truth] of Object.entries(truths)) {
+      const vector = readJson<BreathingVector>("breathing", file);
+      expect(vector.expected.status, file).toBe("measured");
+      if (vector.expected.status !== "measured") continue;
+      expect(
+        Math.abs(vector.expected.breathsPerMinute - truth),
+        file,
+      ).toBeLessThan(1);
+    }
+  });
+});
+
+describe("calorie golden vectors", () => {
+  const { cases } = readJson<{
+    cases: {
+      name: string;
+      input: CalorieEstimateInput;
+      expected: CalorieEstimate;
+    }[];
+  }>("calories", "estimates.json");
+
+  for (const testCase of cases) {
+    it(testCase.name, () => {
+      const actual = estimateCalories(testCase.input);
+      const expected = testCase.expected;
+      expect(actual.estimatedKcal).toBeCloseTo(expected.estimatedKcal, 6);
+      expect(actual.met).toBeCloseTo(expected.met, 6);
+      expect(actual.bodyMassKg).toBeCloseTo(expected.bodyMassKg, 6);
+      expect(actual.algorithmVersion).toBe(expected.algorithmVersion);
+      expect([...actual.inputsUsed]).toEqual([...expected.inputsUsed]);
+      expect(actual.confidenceBand.label).toBe(expected.confidenceBand.label);
+      expect(actual.confidenceBand.lowKcal).toBeCloseTo(
+        expected.confidenceBand.lowKcal,
+        6,
+      );
+      expect(actual.confidenceBand.highKcal).toBeCloseTo(
+        expected.confidenceBand.highKcal,
+        6,
+      );
+    });
+  }
+
+  it("never labels an estimate as narrow, and always brackets it", () => {
+    for (const testCase of cases) {
+      const estimate = estimateCalories(testCase.input);
+      expect(["moderate", "wide", "veryWide"]).toContain(
+        estimate.confidenceBand.label,
+      );
+      expect(estimate.confidenceBand.lowKcal).toBeLessThanOrEqual(
+        estimate.estimatedKcal,
+      );
+      expect(estimate.confidenceBand.highKcal).toBeGreaterThanOrEqual(
+        estimate.estimatedKcal,
+      );
+    }
+  });
+
+  it("widens the band when body mass was not supplied", () => {
+    const withMass = estimateCalories({
+      activity: "squat",
+      durationMs: 300_000,
+      repetitions: 60,
+      bodyMassKg: 74,
+    });
+    const withoutMass = estimateCalories({
+      activity: "squat",
+      durationMs: 300_000,
+      repetitions: 60,
+    });
+    const spread = (estimate: CalorieEstimate): number =>
+      (estimate.confidenceBand.highKcal - estimate.confidenceBand.lowKcal) /
+      estimate.estimatedKcal;
+    expect(spread(withoutMass)).toBeGreaterThan(spread(withMass));
+    expect(withoutMass.inputsUsed).not.toContain("bodyMass");
+  });
+});
+
+describe("guided breathing schedule", () => {
+  it("walks a calm pattern through its phases", () => {
+    const pattern = CALM_PATTERN(3);
+    // Calm has no hold phases, so they must be skipped rather than reported.
+    expect(phaseAt(pattern, 0).phase).toBe("inhale");
+    expect(phaseAt(pattern, 3_999).phase).toBe("inhale");
+    expect(phaseAt(pattern, 4_000).phase).toBe("exhale");
+    expect(phaseAt(pattern, 9_999).phase).toBe("exhale");
+    expect(phaseAt(pattern, 10_000)).toMatchObject({
+      phase: "inhale",
+      cycleIndex: 1,
+    });
+    expect(phaseAt(pattern, 30_000).phase).toBe("complete");
+  });
+
+  it("reports every phase of a box pattern with progress", () => {
+    const pattern = BOX_PATTERN(1);
+    expect(phaseAt(pattern, 2_000)).toMatchObject({
+      phase: "inhale",
+      progress: 0.5,
+    });
+    expect(phaseAt(pattern, 6_000).phase).toBe("hold");
+    expect(phaseAt(pattern, 10_000).phase).toBe("exhale");
+    expect(phaseAt(pattern, 14_000).phase).toBe("holdAfter");
+    expect(phaseAt(pattern, 16_000).phase).toBe("complete");
+  });
+
+  it("produces the same schedule on every device", () => {
+    // Two partners breathe together because the schedule is a pure function of
+    // elapsed time, not of either device's state.
+    const pattern = BOX_PATTERN(4);
+    for (let elapsed = 0; elapsed <= 16_000; elapsed += 137) {
+      expect(phaseAt(pattern, elapsed)).toEqual(phaseAt(pattern, elapsed));
+    }
+  });
+});
+
+describe("pulse freshness", () => {
+  const measured: MeasuredPulse = {
+    status: "measured",
+    bpm: 72,
+    durationMs: 20_000,
+    sampleCount: 600,
+    effectiveSampleRateHz: 30,
+    quality: {
+      score: 0.9,
+      band: "good",
+      coverage: 1,
+      motion: 0.05,
+      periodicity: 0.95,
+      amplitude: 0.02,
+      stability: 0.9,
+    },
+    confidence: 0.9,
+    confidenceBand: "high",
+    source: "phone_camera_ppg",
+    kind: "app_estimated",
+    measuredAtMs: 1_000_000,
+  };
+
+  it("expires exactly at the freshness window", () => {
+    expect(isPulseFresh(measured, 1_000_000)).toBe(true);
+    expect(isPulseFresh(measured, 1_000_000 + PULSE_FRESHNESS_MS - 1)).toBe(
+      true,
+    );
+    // Master specification §4: an expired reading must stop being presented as
+    // current, everywhere — including to a partner.
+    expect(isPulseFresh(measured, 1_000_000 + PULSE_FRESHNESS_MS)).toBe(false);
+  });
+
+  it("never reports a negative age from a clock that stepped backwards", () => {
+    expect(pulseAgeMs(measured, 999_000)).toBe(0);
+  });
+});
