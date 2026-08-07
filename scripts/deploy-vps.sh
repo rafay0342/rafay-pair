@@ -154,14 +154,25 @@ export RAFAYPAIR_ANDROID_KEY_PASSWORD="$keystore_password"
 
 # The staging variant is release-shaped — signed, minified, not debuggable — and
 # the build refuses to produce it without the five Firebase and Play Integrity
-# identifiers. Those are the account holder's and do not exist yet, so
-# structurally valid placeholders stand in. Push notifications and the
-# integrity check will not work in this artifact; everything else will.
-export RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER="${RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER:-123456789012}"
-export RAFAYPAIR_FIREBASE_API_KEY="${RAFAYPAIR_FIREBASE_API_KEY:-AIzaPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP}"
-export RAFAYPAIR_FIREBASE_APPLICATION_ID="${RAFAYPAIR_FIREBASE_APPLICATION_ID:-1:123456789012:android:0123456789abcdef}"
-export RAFAYPAIR_FIREBASE_PROJECT_ID="${RAFAYPAIR_FIREBASE_PROJECT_ID:-rafaypair-placeholder}"
-export RAFAYPAIR_FIREBASE_SENDER_ID="${RAFAYPAIR_FIREBASE_SENDER_ID:-123456789012}"
+# identifiers.
+#
+# Gradle reads them from a gradle property, then the environment, then
+# local.properties. Exporting placeholders unconditionally would therefore
+# silently outrank real values sitting in local.properties, so they are only
+# supplied when that file does not already carry them.
+identifiers_file="$PROJECT_ROOT/apps/android/local.properties"
+if grep -qs '^RAFAYPAIR_FIREBASE_API_KEY=AIza' "$identifiers_file"; then
+  note "using the real Firebase and Play Integrity identifiers from local.properties"
+  using_placeholders=""
+else
+  note "no identifiers in local.properties — building with placeholders (push will not work)"
+  using_placeholders="yes"
+  export RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER="${RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER:-123456789012}"
+  export RAFAYPAIR_FIREBASE_API_KEY="${RAFAYPAIR_FIREBASE_API_KEY:-AIzaPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP}"
+  export RAFAYPAIR_FIREBASE_APPLICATION_ID="${RAFAYPAIR_FIREBASE_APPLICATION_ID:-1:123456789012:android:0123456789abcdef}"
+  export RAFAYPAIR_FIREBASE_PROJECT_ID="${RAFAYPAIR_FIREBASE_PROJECT_ID:-rafaypair-placeholder}"
+  export RAFAYPAIR_FIREBASE_SENDER_ID="${RAFAYPAIR_FIREBASE_SENDER_ID:-123456789012}"
+fi
 
 mkdir -p "$OUT_DIR"
 cd "$PROJECT_ROOT/apps/android"
@@ -207,10 +218,10 @@ $(printf '\033[1mWhat is not finished, and why\033[0m')
   until those exist it runs pre-production, which also means web session
   cookies are not marked Secure. Use the phone apps against this endpoint.
 
-  Push notifications will not arrive: the artifacts carry placeholder Firebase
-  identifiers. Supply the real five values and re-run this script to replace
-  them.
-
+${using_placeholders:+  Push notifications will not arrive: the artifacts carry placeholder Firebase
+  identifiers. Put the real five values in apps/android/local.properties and
+  re-run this script to replace them.
+}
   Rafay AI voice needs the Model Studio workspace activated. Everything else —
   accounts, pairing, consent, care, camera workouts, pulse, breathing, together
   mode, the assistant's memory — works against this deployment.
