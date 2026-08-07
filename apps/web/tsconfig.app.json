@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@rafay-pair/api-contracts": ["../../packages/api-contracts/src/index.ts"]
+    },
+    "types": []
+  },
+  "include": ["src", "tests/*.ts", "tests/*.tsx"],
+  "references": [{ "path": "../../packages/api-contracts" }]
+}

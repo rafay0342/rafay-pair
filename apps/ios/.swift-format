@@ -1,0 +1,16 @@
+{
+  "indentation": {
+    "spaces": 4
+  },
+  "lineLength": 120,
+  "multiElementCollectionTrailingCommas": true,
+  "rules": {
+    "NeverForceUnwrap": true,
+    "NeverUseForceTry": true,
+    "NeverUseImplicitlyUnwrappedOptionals": true,
+    "OrderedImports": true,
+    "ReplaceForEachWithForLoop": true,
+    "UseLetInEveryBoundCaseVariable": true
+  },
+  "version": 1
+}

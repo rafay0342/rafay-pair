@@ -1,0 +1,69 @@
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.p12
+*.mobileprovision
+*.jks
+*.keystore
+*.pem
+*.key
+service-account*.json
+
+# JavaScript / TypeScript
+node_modules/
+.pnpm-store/
+coverage/
+dist/
+.turbo/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Apple
+DerivedData/
+build/
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+xcuserdata/
+*.xcuserstate
+.swiftpm/
+
+# Android / Gradle
+.gradle/
+local.properties
+**/build/
+captures/
+*.apk
+*.aab
+mapping.txt
+
+# Rust / WASM
+target/
+pkg/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Local service data and generated artifacts
+.data/
+artifacts/
+reports/
+

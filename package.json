@@ -1,0 +1,26 @@
+{
+  "name": "rafay-pair",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pure-native, smartphone-only couple care and fitness platform",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=11.20.0 <12"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "clean": "pnpm -r --if-present clean",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "test:integration": "pnpm -r --if-present test:integration",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "verify": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

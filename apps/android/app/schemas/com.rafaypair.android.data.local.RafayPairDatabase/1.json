@@ -1,0 +1,169 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "605b1b9711033f3f625339f145704773",
+    "entities": [
+      {
+        "tableName": "care_drafts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clientRequestId` TEXT NOT NULL, `ownerUserId` TEXT NOT NULL, `pairId` TEXT NOT NULL, `kind` TEXT NOT NULL, `encryptedMessage` TEXT, `state` TEXT NOT NULL, `lastError` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`clientRequestId`))",
+        "fields": [
+          {
+            "fieldPath": "clientRequestId",
+            "columnName": "clientRequestId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "ownerUserId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pairId",
+            "columnName": "pairId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "encryptedMessage",
+            "columnName": "encryptedMessage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "lastError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clientRequestId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_care_drafts_ownerUserId_updatedAtEpochMillis",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "updatedAtEpochMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_care_drafts_ownerUserId_updatedAtEpochMillis` ON `${TABLE_NAME}` (`ownerUserId`, `updatedAtEpochMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "care_summaries",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`requestId` TEXT NOT NULL, `ownerUserId` TEXT NOT NULL, `clientRequestId` TEXT, `kind` TEXT NOT NULL, `encryptedMessage` TEXT, `direction` TEXT NOT NULL, `status` TEXT NOT NULL, `encryptedOtherDisplayName` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, `respondedAtEpochMillis` INTEGER, PRIMARY KEY(`requestId`))",
+        "fields": [
+          {
+            "fieldPath": "requestId",
+            "columnName": "requestId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerUserId",
+            "columnName": "ownerUserId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clientRequestId",
+            "columnName": "clientRequestId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "encryptedMessage",
+            "columnName": "encryptedMessage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "direction",
+            "columnName": "direction",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "encryptedOtherDisplayName",
+            "columnName": "encryptedOtherDisplayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "respondedAtEpochMillis",
+            "columnName": "respondedAtEpochMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "requestId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_care_summaries_ownerUserId_createdAtEpochMillis",
+            "unique": false,
+            "columnNames": [
+              "ownerUserId",
+              "createdAtEpochMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_care_summaries_ownerUserId_createdAtEpochMillis` ON `${TABLE_NAME}` (`ownerUserId`, `createdAtEpochMillis`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '605b1b9711033f3f625339f145704773')"
+    ]
+  }
+}

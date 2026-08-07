@@ -1,0 +1,14 @@
+RAFAY_PAIR_FINAL_MOBILE_ONLY_NATIVE_MASTER.md
+apps/android/
+apps/ios/
+artifacts/
+coverage/
+node_modules/
+reports/
+**/dist/
+**/build/
+**/*.xcresult/
+infra/terraform/.terraform/
+infra/terraform/.terraform.lock.hcl
+pnpm-lock.yaml
+packages/design-tokens/assets/

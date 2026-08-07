@@ -1,0 +1,11 @@
+packages:
+  - "apps/api"
+  - "apps/worker"
+  - "apps/web"
+  - "packages/*"
+  - "services/*"
+
+allowBuilds:
+  argon2: true
+  esbuild: true
+  protobufjs: false

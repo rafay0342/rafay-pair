@@ -1,0 +1,5 @@
+extends:
+  - recommended-strict
+
+rules:
+  no-server-example.com: off

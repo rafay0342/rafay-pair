@@ -1,0 +1,588 @@
+name: Protected release
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Protected GitHub environment and deployment target
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+      publish_stores:
+        description: Upload validated binaries to TestFlight and Google Play internal testing
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24.18.1"
+  PNPM_VERSION: "11.20.0"
+
+jobs:
+  release-gate:
+    name: Verify immutable release source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require the protected main branch
+        run: test "$GITHUB_REF" = "refs/heads/main"
+      - name: Require successful Verify workflow for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          verify_run_id="$(gh api --method GET \
+            "/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f head_sha="$GITHUB_SHA" -f status=completed -f per_page=100 \
+            --jq '.workflow_runs | map(select(.conclusion == "success" and .event == "push" and .head_branch == "main")) | first | .id // empty')"
+          test -n "$verify_run_id"
+          echo "Verified CI run $verify_run_id for $GITHUB_SHA."
+      - name: Require staging acceptance before production promotion
+        if: inputs.environment == 'production'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          marker_prefix="staging-acceptance-$GITHUB_SHA-"
+          mapfile -t marker_run_ids < <(
+            gh api --paginate "/repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" |
+              jq -sr --arg prefix "$marker_prefix" --arg sha "$GITHUB_SHA" '
+                [.[].artifacts[]
+                  | select(.expired == false)
+                  | select(.workflow_run.head_sha == $sha)
+                  | select(.name | startswith($prefix))]
+                | sort_by(.created_at) | reverse | .[].workflow_run.id
+              ' | awk '!seen[$0]++'
+          )
+          test "${#marker_run_ids[@]}" -gt 0
+          accepted_run=""
+          for marker_run_id in "${marker_run_ids[@]}"; do
+            candidate="$(gh api --method GET \
+              "/repos/$GITHUB_REPOSITORY/actions/runs/$marker_run_id" \
+              --jq 'select(.conclusion == "success" and .event == "workflow_dispatch" and .path == ".github/workflows/release.yml") | .id // empty')"
+            if [[ -n "$candidate" ]]; then
+              accepted_run="$candidate"
+              break
+            fi
+          done
+          test -n "$accepted_run"
+          echo "Verified successful staging release run $accepted_run for $GITHUB_SHA."
+
+  server:
+    name: Build and deploy API and worker
+    runs-on: ubuntu-24.04
+    needs: [release-gate]
+    timeout-minutes: 35
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      api_image: ${{ steps.deployment_images.outputs.api_image }}
+      worker_image: ${{ steps.deployment_images.outputs.worker_image }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ vars.AWS_RELEASE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Authenticate to ECR
+        run: |
+          registry="$(printf '%s' "$ECR_API_REPOSITORY" | cut -d/ -f1)"
+          aws ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+        env:
+          ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+      - name: Resolve immutable image names
+        id: images
+        run: |
+          release_tag="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "api_image=$ECR_API_REPOSITORY:$release_tag" >> "$GITHUB_OUTPUT"
+          echo "worker_image=$ECR_WORKER_REPOSITORY:$release_tag" >> "$GITHUB_OUTPUT"
+        env:
+          ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
+          ECR_WORKER_REPOSITORY: ${{ vars.ECR_WORKER_REPOSITORY }}
+      - id: api_build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ${{ steps.images.outputs.api_image }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - id: worker_build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: apps/worker/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ${{ steps.images.outputs.worker_image }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+      - name: Scan API image digest
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: ${{ vars.ECR_API_REPOSITORY }}@${{ steps.api_build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan worker image digest
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: ${{ vars.ECR_WORKER_REPOSITORY }}@${{ steps.worker_build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2, Cosign 3.0.6
+      - name: Keyless-sign immutable image digests
+        run: |
+          cosign sign --yes "$ECR_API_REPOSITORY@$API_DIGEST"
+          cosign sign --yes "$ECR_WORKER_REPOSITORY@$WORKER_DIGEST"
+        env:
+          ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
+          ECR_WORKER_REPOSITORY: ${{ vars.ECR_WORKER_REPOSITORY }}
+          API_DIGEST: ${{ steps.api_build.outputs.digest }}
+          WORKER_DIGEST: ${{ steps.worker_build.outputs.digest }}
+      - name: Resolve digest-pinned deployment images
+        id: deployment_images
+        run: |
+          echo "api_image=$ECR_API_REPOSITORY@$API_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "worker_image=$ECR_WORKER_REPOSITORY@$WORKER_DIGEST" >> "$GITHUB_OUTPUT"
+        env:
+          ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
+          ECR_WORKER_REPOSITORY: ${{ vars.ECR_WORKER_REPOSITORY }}
+          API_DIGEST: ${{ steps.api_build.outputs.digest }}
+          WORKER_DIGEST: ${{ steps.worker_build.outputs.digest }}
+      - name: Measure release container images
+        env:
+          ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
+          ECR_WORKER_REPOSITORY: ${{ vars.ECR_WORKER_REPOSITORY }}
+          API_DIGEST: ${{ steps.api_build.outputs.digest }}
+          WORKER_DIGEST: ${{ steps.worker_build.outputs.digest }}
+        run: |
+          api_repository_name="${ECR_API_REPOSITORY#*/}"
+          worker_repository_name="${ECR_WORKER_REPOSITORY#*/}"
+          api_bytes="$(aws ecr describe-images --repository-name "$api_repository_name" \
+            --image-ids "imageDigest=$API_DIGEST" --query 'imageDetails[0].imageSizeInBytes' --output text)"
+          worker_bytes="$(aws ecr describe-images --repository-name "$worker_repository_name" \
+            --image-ids "imageDigest=$WORKER_DIGEST" --query 'imageDetails[0].imageSizeInBytes' --output text)"
+          [[ "$api_bytes" =~ ^[0-9]+$ ]]
+          [[ "$worker_bytes" =~ ^[0-9]+$ ]]
+          mkdir -p reports
+          {
+            printf 'artifact\tdigest\tbytes\n'
+            printf 'api\t%s\t%s\n' "$API_DIGEST" "$api_bytes"
+            printf 'worker\t%s\t%s\n' "$WORKER_DIGEST" "$worker_bytes"
+          } > reports/container-release-sizes.tsv
+          {
+            printf '### Release container sizes\n\n| Image | Digest | Bytes |\n| --- | --- | ---: |\n'
+            printf "| \`api\` | \`%s\` | %s |\n" "$API_DIGEST" "$api_bytes"
+            printf "| \`worker\` | \`%s\` | %s |\n\n" "$WORKER_DIGEST" "$worker_bytes"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: container-sizes-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/container-release-sizes.tsv
+          if-no-files-found: error
+          retention-days: 90
+      - name: Run migration and deploy with ECS circuit-breaker rollback
+        run: ./scripts/deploy-ecs.sh
+        env:
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          ECS_SUBNET_IDS: ${{ vars.ECS_SUBNET_IDS }}
+          ECS_SECURITY_GROUP_ID: ${{ vars.ECS_SECURITY_GROUP_ID }}
+          ECS_API_TASK_DEFINITION: ${{ vars.ECS_API_TASK_DEFINITION }}
+          ECS_MIGRATION_TASK_DEFINITION: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+          ECS_WORKER_TASK_DEFINITION: ${{ vars.ECS_WORKER_TASK_DEFINITION }}
+          API_IMAGE: ${{ steps.deployment_images.outputs.api_image }}
+          WORKER_IMAGE: ${{ steps.deployment_images.outputs.worker_image }}
+      - name: API readiness smoke test
+        run: curl --fail --retry 12 --retry-delay 5 --retry-all-errors "$API_URL/health/ready"
+        env:
+          API_URL: ${{ vars.PUBLIC_API_URL }}
+
+  web:
+    name: Build and atomically deploy Web
+    runs-on: ubuntu-24.04
+    needs: [release-gate, server]
+    timeout-minutes: 25
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rafay-pair/web lint
+      - run: pnpm --filter @rafay-pair/web typecheck
+      - run: pnpm --filter @rafay-pair/web test
+      - run: pnpm --filter @rafay-pair/web build
+        env:
+          VITE_API_BASE_URL: ${{ vars.PUBLIC_WEB_URL }}
+      - run: ./scripts/report-artifact-sizes.sh reports/web-release-sizes.tsv apps/web/dist
+      - uses: aws-actions/configure-aws-credentials@acca2b1b2070338fb9fd1ca27ecee81d687e58e5 # v6.1.2
+        with:
+          role-to-assume: ${{ vars.AWS_RELEASE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          mask-aws-account-id: true
+      - name: Immutable upload and atomic HTML swap
+        run: ./scripts/deploy-web.sh
+        env:
+          RELEASE_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          WEB_BUCKET: ${{ vars.WEB_BUCKET }}
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+      - name: Edge smoke test
+        run: |
+          deployed_index="$RUNNER_TEMP/deployed-index.html"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors \
+            --output "$deployed_index" "$WEB_URL/"
+          cmp apps/web/dist/index.html "$deployed_index"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors "$WEB_URL/v1/health/ready"
+        env:
+          WEB_URL: ${{ vars.PUBLIC_WEB_URL }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/web/dist
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-private-source-maps-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/web/private-source-maps
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: web-sizes-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/web-release-sizes.tsv
+          if-no-files-found: error
+          retention-days: 90
+
+  ios:
+    name: Signed environment IPA and optional TestFlight upload
+    runs-on: macos-26
+    needs: [release-gate]
+    timeout-minutes: 45
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install checksum-pinned XcodeGen
+        env:
+          XCODEGEN_INSTALL_DIR: ${{ runner.temp }}/xcodegen
+        run: |
+          ./scripts/install-xcodegen.sh
+          echo "$XCODEGEN_INSTALL_DIR/bin" >> "$GITHUB_PATH"
+      - name: Import protected signing material
+        env:
+          IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_CI_KEYCHAIN_PASSWORD }}
+        run: |
+          certificate_path="$RUNNER_TEMP/rafaypair-distribution.p12"
+          profile_path="$RUNNER_TEMP/rafaypair.mobileprovision"
+          keychain_path="$RUNNER_TEMP/rafaypair-signing.keychain-db"
+          printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security list-keychain -d user -s "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$keychain_path"
+          profile_uuid="$(security cms -D -i "$profile_path" | plutil -extract UUID raw -)"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$profile_path" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+      - name: Materialize restricted App Store Connect key
+        if: inputs.environment == 'production'
+        env:
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          key_path="$RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$key_path"
+          chmod 600 "$key_path"
+          echo "APP_STORE_CONNECT_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+      - name: Archive and export signed IPA
+        run: ./scripts/archive-ios.sh
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          IOS_CONFIGURATION: ${{ inputs.environment == 'production' && 'Release' || 'Staging' }}
+          IOS_EXPORT_KIND: ${{ inputs.environment == 'production' && 'app-store' || 'development' }}
+          IOS_BUILD_NUMBER: ${{ github.run_number }}
+      - name: Verify embedded iOS signature and provisioning team
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          ipa_path="$(find artifacts/ios/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$ipa_path"
+          verification_directory="$(mktemp -d)"
+          trap 'rm -rf "$verification_directory"' EXIT
+          ditto -x -k "$ipa_path" "$verification_directory"
+          app_path="$(find "$verification_directory/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$app_path"
+          codesign --verify --deep --strict "$app_path"
+          codesign -d --entitlements - --xml "$app_path" > "$verification_directory/app-entitlements.plist"
+          security cms -D -i "$app_path/embedded.mobileprovision" > "$verification_directory/profile.plist"
+          profile_team="$(plutil -extract TeamIdentifier.0 raw "$verification_directory/profile.plist")"
+          test "$profile_team" = "$APPLE_TEAM_ID"
+          bundle_identifier="$(plutil -extract CFBundleIdentifier raw "$app_path/Info.plist")"
+          test "$bundle_identifier" = "com.rafaypair.app"
+          app_identifier="$(plutil -extract application-identifier raw "$verification_directory/app-entitlements.plist")"
+          profile_identifier="$(plutil -extract Entitlements.application-identifier raw "$verification_directory/profile.plist")"
+          test "$app_identifier" = "$APPLE_TEAM_ID.$bundle_identifier"
+          test "$profile_identifier" = "$app_identifier"
+          app_team="$(plutil -extract com.apple.developer.team-identifier raw "$verification_directory/app-entitlements.plist")"
+          test "$app_team" = "$APPLE_TEAM_ID"
+          if [[ "$RELEASE_ENVIRONMENT" == "production" ]]; then
+            expected_aps_environment=production
+            expected_app_attest_environment=production
+          else
+            expected_aps_environment=development
+            expected_app_attest_environment=development
+          fi
+          app_aps_environment="$(plutil -extract aps-environment raw "$verification_directory/app-entitlements.plist")"
+          profile_aps_environment="$(plutil -extract Entitlements.aps-environment raw "$verification_directory/profile.plist")"
+          test "$app_aps_environment" = "$expected_aps_environment"
+          test "$profile_aps_environment" = "$expected_aps_environment"
+          app_attest_environment="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.devicecheck.appattest-environment' "$verification_directory/app-entitlements.plist")"
+          profile_app_attest_environment="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.devicecheck.appattest-environment' "$verification_directory/profile.plist")"
+          test "$app_attest_environment" = "$expected_app_attest_environment"
+          test "$profile_app_attest_environment" = "$expected_app_attest_environment"
+      - name: Validate App Store package
+        if: inputs.environment == 'production'
+        run: |
+          ipa_path="$(find artifacts/ios/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$ipa_path"
+          xcrun altool --validate-app --type ios --file "$ipa_path" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - name: Preserve the complete signed archive
+        run: |
+          test -d artifacts/ios/RafayPair.xcarchive
+          ditto -c -k --sequesterRsrc --keepParent \
+            artifacts/ios/RafayPair.xcarchive artifacts/ios/RafayPair.xcarchive.zip
+          test -s artifacts/ios/RafayPair.xcarchive.zip
+      - name: Measure signed iOS artifacts
+        run: |
+          ipa_path="$(find artifacts/ios/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$ipa_path"
+          ./scripts/report-artifact-sizes.sh reports/ios-release-sizes.tsv \
+            "$ipa_path" artifacts/ios/RafayPair.xcarchive.zip \
+            artifacts/ios/RafayPair.xcarchive/dSYMs
+      - name: Upload to TestFlight
+        if: inputs.publish_stores && inputs.environment == 'production'
+        run: |
+          ipa_path="$(find artifacts/ios/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          xcrun altool --upload-app --type ios --file "$ipa_path" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-signed-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/ios/export/*.ipa
+            artifacts/ios/RafayPair.xcarchive.zip
+            artifacts/ios/RafayPair.xcarchive/dSYMs
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-sizes-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/ios-release-sizes.tsv
+          if-no-files-found: error
+          retention-days: 90
+
+  android:
+    name: Signed environment APK/AAB and optional Play internal upload
+    runs-on: ubuntu-24.04
+    needs: [release-gate]
+    timeout-minutes: 35
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+      - name: Materialize protected Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          key_path="$RUNNER_TEMP/rafaypair-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$key_path"
+          test -s "$key_path"
+          chmod 600 "$key_path"
+          echo "RAFAYPAIR_ANDROID_STORE_FILE=$key_path" >> "$GITHUB_ENV"
+      - name: Verify and package release
+        working-directory: apps/android
+        run: |
+          if [[ "$RELEASE_ENVIRONMENT" == "production" ]]; then
+            ./gradlew --configuration-cache lintRelease testDebugUnitTest assembleRelease bundleRelease
+          else
+            ./gradlew --configuration-cache lintStaging testDebugUnitTest assembleStaging
+          fi
+        env:
+          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+          RAFAYPAIR_ANDROID_VERSION_CODE: ${{ github.run_number }}
+          RAFAYPAIR_FIREBASE_APPLICATION_ID: ${{ vars.RAFAYPAIR_FIREBASE_APPLICATION_ID }}
+          RAFAYPAIR_FIREBASE_API_KEY: ${{ vars.RAFAYPAIR_FIREBASE_API_KEY }}
+          RAFAYPAIR_FIREBASE_PROJECT_ID: ${{ vars.RAFAYPAIR_FIREBASE_PROJECT_ID }}
+          RAFAYPAIR_FIREBASE_SENDER_ID: ${{ vars.RAFAYPAIR_FIREBASE_SENDER_ID }}
+          RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER: ${{ vars.RAFAYPAIR_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER }}
+          RAFAYPAIR_ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          RAFAYPAIR_ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          RAFAYPAIR_ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Verify Android signatures
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
+          PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256_DIGESTS: ${{ vars.PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256_DIGESTS }}
+          PLAY_INTEGRITY_MIN_VERSION_CODE: ${{ vars.PLAY_INTEGRITY_MIN_VERSION_CODE }}
+          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          expected_fingerprint="$(printf '%s' "$ANDROID_SIGNING_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          test "${#expected_fingerprint}" -eq 64
+          [[ "$PLAY_INTEGRITY_MIN_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
+          test "$PLAY_INTEGRITY_MIN_VERSION_CODE" -le 2100000000
+          test "$GITHUB_RUN_NUMBER" -ge "$PLAY_INTEGRITY_MIN_VERSION_CODE"
+          IFS=',' read -r -a integrity_certificates <<< "$PLAY_INTEGRITY_ALLOWED_CERTIFICATE_SHA256_DIGESTS"
+          test "${#integrity_certificates[@]}" -ge 1
+          test "${#integrity_certificates[@]}" -le 8
+          declare -A unique_integrity_certificates=()
+          for digest in "${integrity_certificates[@]}"; do
+            [[ "$digest" =~ ^[A-Za-z0-9_-]{43}$ ]]
+            test -z "${unique_integrity_certificates[$digest]:-}"
+            unique_integrity_certificates[$digest]=1
+          done
+          if [[ "$RELEASE_ENVIRONMENT" == "production" ]]; then
+            aab_path="$(find apps/android -path '*/outputs/bundle/release/*.aab' -print -quit)"
+            test -n "$aab_path"
+            # Android upload keys are normally self-signed. `-strict` treats the
+            # intentionally absent public PKIX chain as an error even when the
+            # bundle signature is intact; the protected SHA-256 match below
+            # provides the signer-identity guarantee.
+            jarsigner -verify -certs "$aab_path"
+            aab_fingerprint="$(keytool -printcert -jarfile "$aab_path" | awk -F': ' '/SHA256:/{print $2; exit}' | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+            test "$aab_fingerprint" = "$expected_fingerprint"
+            variant=release
+          else
+            variant=staging
+          fi
+          apk_path="$(find apps/android -path "*/outputs/apk/$variant/*.apk" -print -quit)"
+          test -n "$apk_path"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk_path"
+          apk_fingerprint="$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk_path" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          test "$apk_fingerprint" = "$expected_fingerprint"
+      - name: Measure signed Android artifacts
+        run: |
+          if [[ "$RELEASE_ENVIRONMENT" == "production" ]]; then
+            variant=release
+          else
+            variant=staging
+          fi
+          mapfile -t artifacts < <(find apps/android/app/build/outputs -type f \
+            \( -path "*/$variant/*.apk" -o -path "*/$variant/*.aab" -o -path "*/$variant/mapping.txt" \) -print | sort)
+          test "${#artifacts[@]}" -gt 0
+          ./scripts/report-artifact-sizes.sh reports/android-release-sizes.tsv "${artifacts[@]}"
+        env:
+          RELEASE_ENVIRONMENT: ${{ inputs.environment }}
+      - name: Upload AAB to Google Play internal testing
+        if: inputs.publish_stores && inputs.environment == 'production'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.rafaypair.android
+          releaseFiles: apps/android/app/build/outputs/bundle/release/app-release.aab
+          tracks: internal
+          status: completed
+          mappingFile: apps/android/app/build/outputs/mapping/release/mapping.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-signed-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            apps/android/**/build/outputs/apk/staging/*.apk
+            apps/android/**/build/outputs/apk/release/*.apk
+            apps/android/**/build/outputs/bundle/release/*.aab
+            apps/android/**/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-sizes-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/android-release-sizes.tsv
+          if-no-files-found: error
+          retention-days: 90
+
+  staging-acceptance:
+    name: Staging two-user acceptance
+    if: inputs.environment == 'staging'
+    runs-on: ubuntu-24.04
+    needs: [server, web]
+    timeout-minutes: 20
+    environment: staging
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rafay-pair/web exec playwright install --with-deps chromium webkit
+      - name: Exercise the deployed two-user Gate 1 journey
+        run: pnpm --filter @rafay-pair/web test:e2e
+        env:
+          RAFAYPAIR_E2E_BASE_URL: ${{ vars.PUBLIC_WEB_URL }}
+      - name: Record immutable staging acceptance
+        run: |
+          marker="$RUNNER_TEMP/staging-acceptance-$GITHUB_SHA.txt"
+          printf 'commit=%s\nenvironment=staging\n' "$GITHUB_SHA" > "$marker"
+          echo "STAGING_ACCEPTANCE_MARKER=$marker" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-acceptance-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.STAGING_ACCEPTANCE_MARKER }}
+          if-no-files-found: error
+          retention-days: 30

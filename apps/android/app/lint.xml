@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- The authoritative native baseline is SDK 36. AndroidX 37-only releases are intentionally
+         held at their latest SDK-36-compatible stable version until that product baseline moves. -->
+    <issue id="OldTargetApi" severity="ignore" />
+    <issue id="GradleDependency" severity="ignore" />
+    <!-- Adaptive icon XML requires the API-26 resource qualifier even though minSdk is 28. -->
+    <issue id="ObsoleteSdkInt" severity="ignore" />
+</lint>

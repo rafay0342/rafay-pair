@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "plugins": ["typescript", "react", "jsx-a11y", "vitest", "promise", "import"],
+  "options": {
+    "typeAware": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "rules": {
+    "eslint/no-underscore-dangle": "off",
+    "import/no-unassigned-import": "off",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/anchor-is-valid": "error",
+    "jsx-a11y/click-events-have-key-events": "error",
+    "jsx-a11y/interactive-supports-focus": "error",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/no-static-element-interactions": "error",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/role-has-required-aria-props": "error",
+    "jsx-a11y/role-supports-aria-props": "error",
+    "react/button-has-type": "error",
+    "react/exhaustive-deps": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
+    "typescript/no-confusing-void-expression": [
+      "error",
+      {
+        "ignoreArrowShorthand": true,
+        "ignoreVoidOperator": true
+      }
+    ],
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error"
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.{ts,tsx}"],
+      "rules": {
+        "typescript/no-unsafe-type-assertion": "off",
+        "vitest/require-mock-type-parameters": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist/**",
+    "private-source-maps/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**"
+  ]
+}

@@ -1,0 +1,6 @@
+#include "Base.xcconfig"
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+RAFAYPAIR_API_BASE_URL = https:/$()/dev-api.rafaypair.com
+RAFAYPAIR_APP_ATTEST_ENVIRONMENT = development
+RAFAYPAIR_APS_ENVIRONMENT = development
+

@@ -1,0 +1,8 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.xcassets/** binary
+gradlew text eol=lf
+
