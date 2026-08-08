@@ -20,7 +20,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "verify": "pnpm run format:check && pnpm run verify:invariants && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
     "verify:invariants": "node scripts/verify-capture-invariants.mjs",
-    "verify:budgets": "node scripts/check-artifact-budgets.mjs"
+    "verify:budgets": "node scripts/check-artifact-budgets.mjs",
+    "check:ai": "node scripts/check-ai-provider.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.6"

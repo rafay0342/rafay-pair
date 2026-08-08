@@ -4,7 +4,13 @@ Implemented in Gate 4. `apps/api/src/ai/provider.ts` reads these values and noth
 
 To obtain them: create an Alibaba Cloud Model Studio workspace in the Singapore (`ap-southeast-1`) region, generate a Model Studio API key inside that workspace, and copy the workspace identifier out of its endpoint host. A workspace-scoped key (`sk-ws-…`) works; so does the workspace id embedded in the International endpoint, for example `ws-xq02xlvg2ivc6oyc` in `https://ws-xq02xlvg2ivc6oyc.ap-southeast-1.maas.aliyuncs.com/…`. Only `DASHSCOPE_API_KEY` is secret; the model and region are fixed allowlisted strings that the server refuses to accept any other value for.
 
-**Activation is separate from the key.** A key can authenticate — `GET /compatible-mode/v1/models` returns the full catalogue including `qwen3.5-omni-plus-realtime` — and still be entitled to no model at all. Using one then fails with `AccessDenied.Unpurchased` over HTTP, or a WebSocket close of `1007 Access to model denied` on the realtime endpoint. Model Studio has to be activated for the workspace before any model, paid or free-trial, can be called. Listing a model is not entitlement to it, so a deployment check that only lists models would report a working provider that cannot answer.
+`pnpm run check:ai` walks the chain and names the actual cause. Run that before
+concluding anything about voice, because the failures below look identical from
+the application's side and need different people to fix them.
+
+**Activation is separate from the key, and standing is separate from both.** A key can authenticate — `GET /compatible-mode/v1/models` returns the full catalogue including `qwen3.5-omni-plus-realtime` — and still be entitled to no model at all. Using one then fails with `AccessDenied.Unpurchased` over HTTP, or a WebSocket close of `1007 Access to model denied` on the realtime endpoint. Model Studio has to be activated for the workspace before any model, paid or free-trial, can be called. Listing a model is not entitlement to it, so a deployment check that only lists models would report a working provider that cannot answer.
+
+Activation is still not enough. An account in arrears is refused as well, and **free-trial quota is withheld too** — the free tier does not bypass account standing. The workspace endpoint reports both cases as `AccessDenied.Unpurchased`; the shared international endpoint distinguishes them by returning `Arrearage` for the second. `scripts/check-ai-provider.mjs` asks both for that reason, so the answer says whether to activate a service or to settle a balance.
 
 ## Configuration
 
