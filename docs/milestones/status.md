@@ -132,6 +132,16 @@ One guarantee gained a real check rather than a restatement. "Camera/mic cannot 
 
 "Pair disconnect revokes all partner access" gained the same treatment. It was covered for care alone; the integration test now proves the partner also loses the pulse snapshot and the together session, asserting each surface separately so a future surface that forgets the pair check fails there rather than passing on care's strength.
 
+## Specification conformance
+
+Status: every numbered section of the master specification checked against the tree on 2026-08-08. The result is in [spec-conformance.md](./spec-conformance.md), section by section.
+
+This pass happened because a delivery checklist is not a specification. Gates 1–4 and the §30 checklist were all passing while §8 did not exist at all, §6B was an engine with no caller, §5's manual blood-pressure entry had never been built, and none of §24's six experiment flags existed by name. Reading the specification in order is what found them; re-reading the checklist never would have.
+
+All five are now built. The one that matters most as a lesson is blood pressure: the clients had been edited _away_ from the specification, because copy promising a cuff entry was removed rather than the missing feature being built. Removing a promise is not the same as keeping it.
+
+Four things remain open, and none is unwritten software: a signed IPA needs the paid Apple program, since a free personal team cannot sign Push Notifications or App Attest; real-device pulse validation needs a fingertip and a reference reading; a live voice session needs the Model Studio workspace activated, which its own probe now diagnoses precisely; and cold start, memory, battery, thermal, and network usage need a device under a real workout.
+
 ## Build and device setup
 
 Three things previously listed as blockers are now handled in the repository rather than left to manual steps.
