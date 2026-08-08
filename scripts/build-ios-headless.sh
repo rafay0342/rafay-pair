@@ -32,6 +32,9 @@ step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 note() { printf '    %s\n' "$1"; }
 fail() { printf '\n\033[31mFAILED: %s\033[0m\n' "$1" >&2; exit 1; }
 
+CERTIFICATE_ONLY=false
+[[ "${1:-}" == "--certificate-only" ]] && CERTIFICATE_ONLY=true
+
 [[ -f "$KEYCHAIN" ]] || fail "No login keychain at $KEYCHAIN."
 [[ -t 0 ]] || fail "Run this from an interactive shell; it has to ask for your password."
 
@@ -103,14 +106,28 @@ security set-key-partition-list \
   || note "could not set the partition list; continuing, codesign may prompt"
 unset LOGIN_PASSWORD
 
-step "Checking for a connected iPhone"
+if [[ "$CERTIFICATE_ONLY" == true ]]; then
+  cat <<'ONLY'
+
+Certificate done. That part needs no device at all.
+
+The rest — a provisioning profile, and therefore an installable build — does.
+A free personal team's development profile lists specific device identifiers,
+and only Xcode can add one, only while the device is reachable from this Mac.
+
+ONLY
+  exit 0
+fi
+
+step "Checking whether the iPhone is reachable from this Mac"
 if xcrun devicectl list devices 2>/dev/null | grep -qi "connected"; then
   note "a device is connected"
 else
-  printf '    \033[33mNo connected device detected.\033[0m\n'
-  note "A personal team's profile lists specific devices, so the phone has to be"
-  note "plugged in and unlocked at least once. Continuing in case it is already"
-  note "registered."
+  printf '    \033[33mNo reachable device.\033[0m\n'
+  note "Xcode reaches a phone over USB or over the local network — not over a VPN,"
+  note "and not over the internet. Put the phone on the same Wi-Fi as this Mac and"
+  note "unlock it, or connect it by cable. Continuing in case it is already"
+  note "registered with the team."
 fi
 
 step "Archiving"
@@ -131,8 +148,22 @@ xcodebuild \
   CODE_SIGN_ENTITLEMENTS="$ENTITLEMENTS" \
   RAFAYPAIR_API_BASE_URL="$(printf '%s' "$API_URL" | sed 's|://|:/$()/|')" \
   archive \
-  || fail "The archive failed. If it mentions a provisioning profile, connect and
-    unlock the iPhone so the device can be registered, then run this again."
+  || fail "The archive failed.
+
+    If it mentions a provisioning profile or registered devices, the phone has
+    not been registered with this team yet, and a free personal team can only
+    register one that Xcode can actually reach. Three ways out:
+
+      1. Put the iPhone on the same Wi-Fi as this Mac and unlock it, then run
+         this again. No cable needed, but a VPN does not count — it has to be
+         the same local network.
+      2. Connect it by cable at the Mac once. After that first registration it
+         stays registered.
+      3. Join the paid Developer Program. Then a device identifier is
+         registered through App Store Connect with no device present at all,
+         CI signs without a keychain, and push and App Attest work — which is
+         the only route that ends with a real release rather than a seven-day
+         build."
 
 step "Exporting"
 export_options="$WORK_DIR/ExportOptions.plist"
