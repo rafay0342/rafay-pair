@@ -285,6 +285,15 @@ actor VoiceAudioIO {
      * and asking a server to disregard it.
      */
     private let gate = SpeechGate()
+
+    /// Only set once the person has enrolled. Until then the matcher answers
+    /// `unknown` for everything, and `unknown` transmits — a companion that
+    /// ignores its owner is worse than one that occasionally answers someone
+    /// else. `engines/speaker-profile/SPEC.md`.
+    private var enrolledProfile: SpeakerProfile?
+    private var matcher = SpeakerMatcher(profile: nil)
+    private var collectedFrames: [SpeakerFrame] = []
+    private var enrolling = false
     private var playbackFormat: AVAudioFormat?
     private var running = false
 
@@ -332,7 +341,9 @@ actor VoiceAudioIO {
         engine.connect(player, to: engine.mainMixerNode, format: playback)
 
         gate.reset()
+        matcher = SpeakerMatcher(profile: enrolledProfile)
         let sessionGate = gate
+        let sessionMatcher = matcher
         input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { buffer, _ in
             let frame = Self.encode(buffer, using: converter, target: wire)
             guard !frame.isEmpty else { return }
@@ -347,6 +358,17 @@ actor VoiceAudioIO {
                 )
             }
             guard sessionGate.accept(rms: level).transmit else { return }
+
+            // The gate has already excluded the room. This only has to catch a
+            // second person speaking into the same phone, and it only rejects
+            // when it is sure.
+            let samples = frame.withUnsafeBytes { raw -> [Double] in
+                guard let base = raw.baseAddress else { return [] }
+                let pointer = base.assumingMemoryBound(to: Int16.self)
+                return (0..<(frame.count / 2)).map { Double(pointer[$0]) / 32768 }
+            }
+            let features = SpeakerFeatures.frame(samples)
+            guard sessionMatcher.accept(features).verdict != .other else { return }
 
             onFrame(frame)
             // `buffer` goes out of scope here. Nothing retains it and nothing

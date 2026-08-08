@@ -21,6 +21,16 @@ export {
 export { estimateFaceRppg } from "./faceRppgEngine.js";
 export { SpeechGate, frameRms, type GateDecision } from "./speechGate.js";
 export {
+  SpeakerMatcher,
+  buildSpeakerProfile,
+  speakerDistance,
+  speakerFrameFeature,
+  type SpeakerDecision,
+  type SpeakerFrame,
+  type SpeakerProfile,
+  type SpeakerVerdict,
+} from "./speakerProfile.js";
+export {
   VEINS_DISCLOSURE,
   veinsDrivers,
   type MuscleGroup,

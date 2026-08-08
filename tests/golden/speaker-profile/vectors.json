@@ -1,0 +1,49 @@
+{
+  "$comment": "engines/speaker-profile/SPEC.md. Frames are synthesised from the documented test signal; every port must reach the same verdict.",
+  "amplitude": 0.2,
+  "samplesPerFrame": 320,
+  "wobbleHz": 3,
+  "enrolFrames": 160,
+  "cases": [
+    {
+      "name": "enrolled voice",
+      "note": "The person the profile was built from is accepted.",
+      "enrolF0": 120,
+      "speakF0": 120,
+      "frames": 25,
+      "expected": "enrolled"
+    },
+    {
+      "name": "partner an octave apart",
+      "note": "The case this exists for: a second person speaking into the same phone.",
+      "enrolF0": 115,
+      "speakF0": 230,
+      "frames": 25,
+      "expected": "other"
+    },
+    {
+      "name": "not enough heard yet",
+      "note": "Unknown is a real answer, and callers transmit on it.",
+      "enrolF0": 120,
+      "speakF0": 120,
+      "frames": 5,
+      "expected": "unknown"
+    },
+    {
+      "name": "a deeper voice",
+      "note": "Rejected downwards as well as upwards.",
+      "enrolF0": 210,
+      "speakF0": 105,
+      "frames": 25,
+      "expected": "other"
+    },
+    {
+      "name": "same speaker, natural drift",
+      "note": "A voice that moves within its own range is still the same voice.",
+      "enrolF0": 150,
+      "speakF0": 162,
+      "frames": 25,
+      "expected": "enrolled"
+    }
+  ]
+}

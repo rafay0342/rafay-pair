@@ -161,6 +161,11 @@ class VoiceClient(
      */
     val nearSpeech: StateFlow<Boolean> = mutableNearSpeech.asStateFlow()
 
+    private val mutableEnrolmentFrames = MutableStateFlow(0)
+
+    /** Voiced frames collected so far, so an interface can show progress. */
+    val enrolmentFrames: StateFlow<Int> = mutableEnrolmentFrames.asStateFlow()
+
     private var socket: WebSocket? = null
     private var captureJob: Job? = null
     private var record: AudioRecord? = null
@@ -170,6 +175,17 @@ class VoiceClient(
      * and asking a server to disregard it.
      */
     private val gate = SpeechGate()
+
+    /**
+     * Only set once the person has enrolled. Until then the matcher answers
+     * `UNKNOWN` for everything, and `UNKNOWN` transmits — a companion that
+     * ignores its owner is worse than one that occasionally answers someone
+     * else. `engines/speaker-profile/SPEC.md`.
+     */
+    var enrolledProfile: SpeakerProfile? = null
+    private var matcher = SpeakerMatcher(null)
+    private val collectedFrames = mutableListOf<SpeakerFrame>()
+    private var enrolling = false
     private var track: AudioTrack? = null
 
     /**
@@ -308,6 +324,7 @@ class VoiceClient(
         mutableListening.value = true
 
         gate.reset()
+        matcher = SpeakerMatcher(enrolledProfile)
         captureJob = scope.launch(Dispatchers.IO) {
             val buffer = ByteArray(frameBytes)
             while (isActive && record != null) {
@@ -319,6 +336,17 @@ class VoiceClient(
                 val decision = gate.accept(SpeechGate.rms(buffer, read))
                 mutableNearSpeech.value = decision.open
                 if (!decision.transmit) continue
+
+                // The gate has already excluded the room. This only has to
+                // catch a second person speaking into the same phone, and it
+                // only rejects when it is sure.
+                val features = SpeakerFeatures.frame(toDoubles(buffer, read))
+                if (enrolling) {
+                    features?.let { collectedFrames.add(it) }
+                    mutableEnrolmentFrames.value = collectedFrames.size
+                    continue
+                }
+                if (matcher.accept(features).verdict == SpeakerVerdict.OTHER) continue
                 // The buffer is copied into the frame that is sent and then
                 // reused. Nothing accumulates, and nothing is written to disk.
                 socket?.send(buffer.toByteString(0, read))
@@ -348,6 +376,36 @@ class VoiceClient(
                 player.flush()
                 player.play()
             }
+        }
+    }
+
+    /**
+     * Collects an enrolment instead of talking to the assistant.
+     *
+     * Frames are still gated and still never leave the device: an enrolment is
+     * a handful of scalars per frame, not a recording.
+     */
+    fun beginEnrolment() {
+        collectedFrames.clear()
+        mutableEnrolmentFrames.value = 0
+        enrolling = true
+    }
+
+    /** Returns the profile, or null when too little was said to build one. */
+    fun finishEnrolment(): SpeakerProfile? {
+        enrolling = false
+        val profile = SpeakerFeatures.profile(collectedFrames.toList())
+        collectedFrames.clear()
+        if (profile != null) enrolledProfile = profile
+        return profile
+    }
+
+    private fun toDoubles(frame: ByteArray, byteCount: Int): DoubleArray {
+        val samples = byteCount / 2
+        return DoubleArray(samples) { index ->
+            val low = frame[index * 2].toInt() and 0xFF
+            val high = frame[index * 2 + 1].toInt()
+            ((high shl 8) or low).toShort().toDouble() / 32768.0
         }
     }
 

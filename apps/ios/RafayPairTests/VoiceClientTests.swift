@@ -176,4 +176,69 @@ final class VoiceClientTests: XCTestCase {
         }
     }
 
+    // MARK: - Speaker profile (engines/speaker-profile/SPEC.md)
+
+    /// The same committed vectors the TypeScript and Kotlin ports consume.
+    func testSpeakerProfileMatchesTheGoldenVectors() throws {
+        struct SpeakerCase: Decodable {
+            let name: String
+            let note: String
+            let enrolF0: Double
+            let speakF0: Double
+            let frames: Int
+            let expected: String
+        }
+        struct Vectors: Decodable {
+            let amplitude: Double
+            let samplesPerFrame: Int
+            let wobbleHz: Int
+            let enrolFrames: Int
+            let cases: [SpeakerCase]
+        }
+
+        let bundle = Bundle(for: Self.self)
+        let url = try XCTUnwrap(
+            bundle.url(
+                forResource: "vectors",
+                withExtension: "json",
+                subdirectory: "golden/speaker-profile"
+            ),
+            "Missing golden/speaker-profile/vectors.json"
+        )
+        let vectors = try JSONDecoder().decode(Vectors.self, from: Data(contentsOf: url))
+        XCTAssertFalse(vectors.cases.isEmpty)
+
+        // The test signal, exactly as the specification defines it.
+        func frame(_ f0Hz: Double) -> [Double] {
+            (0..<vectors.samplesPerFrame).map { index in
+                let t = Double(index) / 16_000
+                return vectors.amplitude
+                    * (sin(2 * .pi * f0Hz * t)
+                        + 0.5 * sin(2 * .pi * 2 * f0Hz * t)
+                        + 0.25 * sin(2 * .pi * 3 * f0Hz * t))
+            }
+        }
+        func wobble(_ base: Double, _ index: Int) -> Double {
+            base + Double((index % (vectors.wobbleHz * 2 + 1)) - vectors.wobbleHz)
+        }
+
+        for entry in vectors.cases {
+            let enrolment = (0..<vectors.enrolFrames).compactMap { index in
+                SpeakerFeatures.frame(frame(wobble(entry.enrolF0, index)))
+            }
+            let profile = SpeakerFeatures.profile(from: enrolment)
+            XCTAssertNotNil(profile, entry.note)
+
+            let matcher = SpeakerMatcher(profile: profile)
+            var verdict = SpeakerVerdict.unknown
+            for index in 0..<entry.frames {
+                verdict =
+                    matcher.accept(
+                        SpeakerFeatures.frame(frame(wobble(entry.speakF0, index)))
+                    ).verdict
+            }
+            XCTAssertEqual(verdict.rawValue, entry.expected, "\(entry.name): \(entry.note)")
+        }
+    }
+
 }
