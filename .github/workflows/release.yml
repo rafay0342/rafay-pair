@@ -113,7 +113,7 @@ jobs:
           ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY }}
           ECR_WORKER_REPOSITORY: ${{ vars.ECR_WORKER_REPOSITORY }}
       - id: api_build
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: apps/api/Dockerfile
@@ -125,7 +125,7 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
       - id: worker_build
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: apps/worker/Dockerfile
