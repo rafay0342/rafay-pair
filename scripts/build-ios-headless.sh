@@ -35,6 +35,36 @@ fail() { printf '\n\033[31mFAILED: %s\033[0m\n' "$1" >&2; exit 1; }
 CERTIFICATE_ONLY=false
 [[ "${1:-}" == "--certificate-only" ]] && CERTIFICATE_ONLY=true
 
+# An SSH session on macOS is not a login session, and the difference is not
+# cosmetic: its keychain *session* domain has the system keychain as default and
+# cannot be changed without root. Xcode writes a new certificate to the default
+# keychain, so over SSH it writes to a root-owned file and reports "Write
+# permissions error" — which reads like a keychain that is locked, and is
+# actually a keychain that is the wrong one.
+#
+# Unlocking does not fix it. Being inside the console user's Aqua session does,
+# because that session's default is the login keychain. `launchctl asuser` moves
+# this process into it, and needs root to do so.
+if [[ -z "${RAFAYPAIR_IN_GUI_SESSION:-}" ]] \
+  && security default-keychain 2>/dev/null | grep -q "System.keychain" \
+  && launchctl print "gui/$(id -u)" >/dev/null 2>&1; then
+  printf '\n\033[1m==> Moving into your desktop login session\033[0m\n'
+  printf '    An SSH shell cannot write to your keychain; your logged-in session can.\n'
+  printf '    sudo is needed only to step into it, and only for that.\n\n'
+  exec sudo launchctl asuser "$(id -u)" \
+    sudo -u "$USER" env RAFAYPAIR_IN_GUI_SESSION=1 "$0" "$@"
+fi
+
+if [[ -z "${RAFAYPAIR_IN_GUI_SESSION:-}" ]] \
+  && security default-keychain 2>/dev/null | grep -q "System.keychain"; then
+  fail "This shell's default keychain is the system one, and nobody is logged in
+    at the screen for us to borrow a session from.
+
+    Log in on the Mac once — the screen may then be locked, it only has to be a
+    login — and run this again. Xcode cannot create a certificate from a session
+    that has no user keychain to put it in."
+fi
+
 [[ -f "$KEYCHAIN" ]] || fail "No login keychain at $KEYCHAIN."
 [[ -t 0 ]] || fail "Run this from an interactive shell; it has to ask for your password."
 
@@ -89,13 +119,16 @@ else
     DEVELOPMENT_TEAM="$TEAM_ID" \
     CODE_SIGN_STYLE=Automatic \
     CODE_SIGN_ENTITLEMENTS="$ENTITLEMENTS" \
-    build >/dev/null 2>&1 || true
+    build 2>&1 | grep -E "error:" | sed 's|^|    |' | sort -u || true
 
   security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Apple Development" \
-    || fail "Xcode did not create a certificate.
-    A free personal team allows a small number of them; if you have hit the
-    limit, revoke an old one at developer.apple.com/account/resources/certificates
-    and run this again."
+    || fail "Xcode did not create a certificate. Its own errors are above.
+
+    \"Write permissions error\" means the certificate is being written to the
+    wrong keychain, which is the SSH session problem this script normally steps
+    around. Any other error is Apple's account state: a free personal team allows
+    only a couple of certificates, and an old one may need revoking at
+    developer.apple.com/account/resources/certificates."
 fi
 note "$(security find-identity -v -p codesigning "$KEYCHAIN" | grep 'Apple Development' | head -1 | sed 's/^ *//')"
 
