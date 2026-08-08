@@ -104,7 +104,22 @@ cd "$PROJECT_ROOT/apps/ios"
 xcodegen generate >/dev/null
 
 if security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Apple Development"; then
-  note "a certificate already exists"
+  note "a usable signing identity already exists"
+elif security find-certificate -c "Apple Development" "$KEYCHAIN" >/dev/null 2>&1; then
+  # A certificate without its private key is not an identity and cannot sign.
+  # Asking Xcode for another one would burn one of the two a free team is
+  # allowed, so this stops instead.
+  fail "A certificate exists but its private key does not, so there is no
+    signing identity.
+
+    Apple issued the certificate and Xcode stopped before pairing it, which is
+    what happens when profile creation fails in the same run — and profile
+    creation fails until a device is registered. Register the device first;
+    the identity completes on the next run.
+
+    If it still does not, revoke the orphaned certificate at
+    developer.apple.com/account/resources/certificates and run this again, so
+    the pair is created together."
 else
   note "asking Xcode to create one"
   # A plain device build is enough to make Xcode issue the certificate and the
