@@ -150,9 +150,26 @@ class VoiceClient(
     /** Reflects the recorder's actual state, not the app's belief about it. */
     val listening: StateFlow<Boolean> = mutableListening.asStateFlow()
 
+    private val mutableNearSpeech = MutableStateFlow(false)
+
+    /**
+     * Whether the gate is currently passing audio.
+     *
+     * Surfaced so an interface can show why someone is not being heard, rather
+     * than leaving them to guess. It never affects the microphone indicator:
+     * the microphone is on whatever the gate is doing with the frames.
+     */
+    val nearSpeech: StateFlow<Boolean> = mutableNearSpeech.asStateFlow()
+
     private var socket: WebSocket? = null
     private var captureJob: Job? = null
     private var record: AudioRecord? = null
+    /**
+     * One gate per session. `engines/speech-gate/SPEC.md`: audio it rejects is
+     * never transmitted at all, which is a stronger statement than sending it
+     * and asking a server to disregard it.
+     */
+    private val gate = SpeechGate()
     private var track: AudioTrack? = null
 
     /**
@@ -290,11 +307,18 @@ class VoiceClient(
         player.play()
         mutableListening.value = true
 
+        gate.reset()
         captureJob = scope.launch(Dispatchers.IO) {
             val buffer = ByteArray(frameBytes)
             while (isActive && record != null) {
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read <= 0) continue
+                // Every frame is offered to the gate, including the ones that
+                // are not sent: the noise floor is only correct if it has seen
+                // the room.
+                val decision = gate.accept(SpeechGate.rms(buffer, read))
+                mutableNearSpeech.value = decision.open
+                if (!decision.transmit) continue
                 // The buffer is copied into the frame that is sent and then
                 // reused. Nothing accumulates, and nothing is written to disk.
                 socket?.send(buffer.toByteString(0, read))
@@ -329,6 +353,7 @@ class VoiceClient(
 
     private fun stopAudio() {
         mutableListening.value = false
+        mutableNearSpeech.value = false
         record?.let { recorder ->
             runCatching { recorder.stop() }
             recorder.release()

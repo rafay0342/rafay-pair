@@ -19,6 +19,7 @@ export {
   isHopUsable,
 } from "./audioBreathingEngine.js";
 export { estimateFaceRppg } from "./faceRppgEngine.js";
+export { SpeechGate, frameRms, type GateDecision } from "./speechGate.js";
 export {
   VEINS_DISCLOSURE,
   veinsDrivers,

@@ -44,6 +44,7 @@
 		5FEC91E725C2F8291E16C664 /* PairStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90DAE67BB6CCC81D5D0411B1 /* PairStore.swift */; };
 		63A855FBB5D5FE9EF9C7B501 /* PoseGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E805BB01585F9DACD87A5B34 /* PoseGeometry.swift */; };
 		63C5D35F0D8E164B954BD375 /* NotificationStateVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30705699D60ACAF7261AC5F /* NotificationStateVault.swift */; };
+		6670523081A19E04F0949A46 /* SpeechGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653F17E73861826FACA65EF9 /* SpeechGate.swift */; };
 		6A4F7F5B026ACDCF69C4463D /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1005EF55FF9B367088683D5 /* HomeView.swift */; };
 		6BE7F11609BB34063EF12463 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71AB11B554236F3CEEAE1451 /* APIClient.swift */; };
 		7002FDAFAA7A18B15BAB38BE /* PulseCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1E0247EB2108455743A73B2 /* PulseCaptureSession.swift */; };
@@ -119,6 +120,7 @@
 		6266C14966FB8962D25E7A66 /* PrivacyAndCareStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyAndCareStateTests.swift; sourceTree = "<group>"; };
 		62B06D5AE6ABFEBC41434048 /* PoseTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseTypes.swift; sourceTree = "<group>"; };
 		6344CE5FDBE98BE852796A0A /* ConsentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStore.swift; sourceTree = "<group>"; };
+		653F17E73861826FACA65EF9 /* SpeechGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechGate.swift; sourceTree = "<group>"; };
 		69812CE577B8C0FB11EE0A35 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6B37E00E377B64081E969F46 /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
 		6B85603F030F8602D15FEADA /* RafayPairUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RafayPairUITests.swift; sourceTree = "<group>"; };
@@ -348,6 +350,7 @@
 		98A16F7C478C85D8A243EFD0 /* Assistant */ = {
 			isa = PBXGroup;
 			children = (
+				653F17E73861826FACA65EF9 /* SpeechGate.swift */,
 				C226E5BA9B8C72E0EE6DFAAC /* VoiceClient.swift */,
 			);
 			path = Assistant;
@@ -750,6 +753,7 @@
 				AD1DC6C183EAE199B4C9EBBC /* SessionStore.swift in Sources */,
 				3AC9575CBF869D75E318B976 /* SettingsView.swift in Sources */,
 				5EC3C8F499E8B73DD5A62638 /* SignalCore.swift in Sources */,
+				6670523081A19E04F0949A46 /* SpeechGate.swift in Sources */,
 				201A36B1B24D56437254D83D /* TogetherView.swift in Sources */,
 				5331C5000B47166CD8D77373 /* TokenVault.swift in Sources */,
 				05F8C7572EAAC6CA44192CB5 /* VeinsAlive.swift in Sources */,

@@ -107,4 +107,73 @@ final class VoiceClientTests: XCTestCase {
             XCTAssertNil(VoiceServerMessage.decode(raw), raw)
         }
     }
+    // MARK: - Speech gate (engines/speech-gate/SPEC.md)
+
+    private func run(_ gate: SpeechGate, _ level: Double, _ frames: Int) -> [Bool] {
+        (0..<frames).map { _ in gate.accept(rms: level).transmit }
+    }
+
+    func testGateStaysShutThroughAQuietRoom() {
+        XCTAssertFalse(run(SpeechGate(), 0.0006, 200).contains(true))
+    }
+
+    func testGateOpensForSomeoneSpeakingIntoThePhone() {
+        let gate = SpeechGate()
+        _ = run(gate, 0.0008, 100)
+        XCTAssertTrue(run(gate, 0.12, 25).contains(true))
+    }
+
+    func testGateStaysShutForATelevisionAcrossTheRoom() {
+        let gate = SpeechGate()
+        _ = run(gate, 0.001, 100)
+        // Well above the floor by ratio, but nowhere near the phone. The
+        // absolute near minimum is what refuses it.
+        XCTAssertFalse(run(gate, 0.006, 200).contains(true))
+    }
+
+    func testGateDoesNotCloseDuringThePausesInsideASentence() {
+        let gate = SpeechGate()
+        _ = run(gate, 0.0008, 100)
+        _ = run(gate, 0.12, 10)
+        XCTAssertTrue(run(gate, 0.004, 8).allSatisfy { $0 })
+    }
+
+    func testGateClosesOnceThePersonHasStopped() {
+        let gate = SpeechGate()
+        _ = run(gate, 0.0008, 100)
+        _ = run(gate, 0.12, 20)
+        XCTAssertEqual(run(gate, 0.0009, 40).last, false)
+    }
+
+    /// The same committed vectors the TypeScript and Kotlin ports consume.
+    /// Three independent implementations agreeing on data is what parity means
+    /// here; agreeing on prose is not.
+    func testGateMatchesTheGoldenVectors() throws {
+        struct Case: Decodable {
+            let name: String
+            let note: String
+            let levels: [Double]
+            let transmit: [Bool]
+        }
+        struct Vectors: Decodable { let cases: [Case] }
+
+        let bundle = Bundle(for: Self.self)
+        let url = try XCTUnwrap(
+            bundle.url(
+                forResource: "vectors",
+                withExtension: "json",
+                subdirectory: "golden/speech-gate"
+            ),
+            "Missing golden/speech-gate/vectors.json"
+        )
+        let vectors = try JSONDecoder().decode(Vectors.self, from: Data(contentsOf: url))
+        XCTAssertFalse(vectors.cases.isEmpty)
+
+        for entry in vectors.cases {
+            let gate = SpeechGate()
+            let actual = entry.levels.map { gate.accept(rms: $0).transmit }
+            XCTAssertEqual(actual, entry.transmit, "\(entry.name): \(entry.note)")
+        }
+    }
+
 }

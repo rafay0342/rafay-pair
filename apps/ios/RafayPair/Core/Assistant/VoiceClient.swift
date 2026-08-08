@@ -279,6 +279,12 @@ private final class VoiceConverterFeed: @unchecked Sendable {
 actor VoiceAudioIO {
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
+    /**
+     * One gate per session. `engines/speech-gate/SPEC.md`: audio it rejects is
+     * never transmitted at all, which is a stronger statement than sending it
+     * and asking a server to disregard it.
+     */
+    private let gate = SpeechGate()
     private var playbackFormat: AVAudioFormat?
     private var running = false
 
@@ -325,9 +331,23 @@ actor VoiceAudioIO {
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: playback)
 
+        gate.reset()
+        let sessionGate = gate
         input.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { buffer, _ in
             let frame = Self.encode(buffer, using: converter, target: wire)
             guard !frame.isEmpty else { return }
+
+            // Every frame is offered to the gate, including the ones that are
+            // not sent: the noise floor is only correct if it has seen the room.
+            let level = frame.withUnsafeBytes { raw -> Double in
+                guard let base = raw.baseAddress else { return 0 }
+                return SpeechGate.rms(
+                    of: base.assumingMemoryBound(to: Int16.self),
+                    count: frame.count / 2
+                )
+            }
+            guard sessionGate.accept(rms: level).transmit else { return }
+
             onFrame(frame)
             // `buffer` goes out of scope here. Nothing retains it and nothing
             // writes it to disk.
