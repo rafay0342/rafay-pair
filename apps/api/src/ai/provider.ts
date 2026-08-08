@@ -62,7 +62,16 @@ export interface QwenCredentials {
   readonly apiKey: string;
   readonly model: string;
   readonly region: string;
-  readonly workspaceId: string;
+  /**
+   * A workspace-scoped host, or `undefined` for the shared international
+   * endpoint.
+   *
+   * Both are Model Studio, and which one a key works against is a property of
+   * how that key was issued rather than something a deployment chooses. A
+   * workspace key is refused by the shared host and vice versa, so the
+   * configuration names one and the endpoint follows from it.
+   */
+  readonly workspaceId?: string;
 }
 
 /**
@@ -80,22 +89,42 @@ export function qwenCredentialsFromEnvironment(
   const region = environment["QWEN_REGION"]?.trim();
   const workspaceId = environment["QWEN_WORKSPACE_ID"]?.trim();
 
-  if (!apiKey || !model || !region || !workspaceId) return undefined;
+  if (!apiKey || !model || !region) return undefined;
 
   // The model and region are exact allowlists, not free configuration. An
   // arbitrary value here would turn deployment config into an unrestricted
   // server-side egress target.
   if (model !== "qwen3.5-omni-plus-realtime") return undefined;
   if (region !== "ap-southeast-1") return undefined;
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/u.test(workspaceId)) return undefined;
 
-  return { apiKey, model, region, workspaceId };
+  // The workspace is optional, and its absence is meaningful rather than
+  // incomplete: it selects the shared international host. When present it must
+  // still look like a hostname label, because it becomes one.
+  if (workspaceId !== undefined && workspaceId !== "") {
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/u.test(workspaceId))
+      return undefined;
+    return { apiKey, model, region, workspaceId };
+  }
+
+  return { apiKey, model, region };
 }
 
-/** Derived from validated parts; never accepted as a whole from configuration. */
+/**
+ * Derived from validated parts; never accepted as a whole from configuration.
+ *
+ * Two hosts are reachable and no others: the workspace-scoped Model Studio host
+ * when a workspace is configured, and the shared international host when one is
+ * not. Both are fixed strings here rather than anything a deployment supplies,
+ * so configuration can choose between two destinations and cannot invent a
+ * third.
+ */
 export function qwenEndpoint(credentials: QwenCredentials): string {
+  const host =
+    credentials.workspaceId === undefined
+      ? "dashscope-intl.aliyuncs.com"
+      : `${credentials.workspaceId}.${credentials.region}.maas.aliyuncs.com`;
   return (
-    `wss://${credentials.workspaceId}.${credentials.region}.maas.aliyuncs.com` +
+    `wss://${host}` +
     `/api-ws/v1/realtime?model=${encodeURIComponent(credentials.model)}`
   );
 }

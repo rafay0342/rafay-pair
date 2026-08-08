@@ -20,8 +20,15 @@ describe("Qwen credentials", () => {
     expect(credentials?.workspaceId).toBe("llm-workspace-01");
   });
 
-  it("returns nothing when any value is absent", () => {
-    for (const key of Object.keys(valid)) {
+  it("returns nothing when a required value is absent", () => {
+    // The workspace is deliberately not in this list: its absence selects the
+    // shared international host, which is a valid configuration rather than an
+    // incomplete one. The other three have no default and no substitute.
+    for (const key of [
+      "DASHSCOPE_API_KEY",
+      "QWEN_REALTIME_MODEL",
+      "QWEN_REGION",
+    ]) {
       const partial = { ...valid, [key]: "" };
       expect(qwenCredentialsFromEnvironment(partial), key).toBeUndefined();
     }
@@ -49,6 +56,37 @@ describe("Qwen credentials", () => {
       "a",
       "workspace/../..",
     ]) {
+      expect(
+        qwenCredentialsFromEnvironment({
+          ...valid,
+          QWEN_WORKSPACE_ID: workspace,
+        }),
+        workspace,
+      ).toBeUndefined();
+    }
+  });
+
+  it("selects the shared international host when no workspace is configured", () => {
+    // A key issued for the shared endpoint is refused by a workspace host and
+    // vice versa, so the absence of a workspace is a choice rather than an
+    // incomplete configuration.
+    const shared = qwenCredentialsFromEnvironment({
+      ...valid,
+      QWEN_WORKSPACE_ID: "",
+    });
+    expect(shared).toBeDefined();
+    if (!shared) return;
+    expect(shared.workspaceId).toBeUndefined();
+    expect(qwenEndpoint(shared)).toBe(
+      "wss://dashscope-intl.aliyuncs.com" +
+        "/api-ws/v1/realtime?model=qwen3.5-omni-plus-realtime",
+    );
+  });
+
+  it("still refuses a workspace that could reshape the endpoint", () => {
+    // Optional does not mean unchecked: a supplied workspace becomes a hostname
+    // label, so anything that is not one is refused rather than ignored.
+    for (const workspace of ["has spaces", "evil.example.com", "../escape"]) {
       expect(
         qwenCredentialsFromEnvironment({
           ...valid,

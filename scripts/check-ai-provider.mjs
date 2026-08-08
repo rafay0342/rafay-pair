@@ -50,17 +50,24 @@ function report(state, message, action) {
   if (action) console.log(`         ${action}`);
 }
 
-if (!key || !model || !region || !workspace) {
+if (!key || !model || !region) {
   report(
     "fail",
     "Configuration is incomplete.",
-    "DASHSCOPE_API_KEY, QWEN_REALTIME_MODEL, QWEN_REGION, and QWEN_WORKSPACE_ID are all required. See docs/ai/qwen-provider-contract.md.",
+    "DASHSCOPE_API_KEY, QWEN_REALTIME_MODEL, and QWEN_REGION are required. QWEN_WORKSPACE_ID is optional: leaving it empty selects the shared international endpoint. See docs/ai/qwen-provider-contract.md.",
   );
   process.exit(1);
 }
-report("ok", `Configured for ${model} in ${region}, workspace ${workspace}.`);
 
-const host = `${workspace}.${region}.maas.aliyuncs.com`;
+// Which host a key works against is a property of how it was issued, not a
+// deployment preference, so the check follows the same rule the server does.
+const host = workspace
+  ? `${workspace}.${region}.maas.aliyuncs.com`
+  : "dashscope-intl.aliyuncs.com";
+report(
+  "ok",
+  `Configured for ${model} in ${region}, via ${workspace ? `workspace ${workspace}` : "the shared international endpoint"}.`,
+);
 const headers = {
   Authorization: `Bearer ${key}`,
   "Content-Type": "application/json",
