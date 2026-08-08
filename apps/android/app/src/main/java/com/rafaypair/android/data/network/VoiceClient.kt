@@ -84,6 +84,9 @@ data class VoiceToolConfirmation(
 
 sealed interface VoiceEvent {
     data object Ready : VoiceEvent
+
+    /** The person began speaking. Anything queued is abandoned audio. */
+    data object Interrupted : VoiceEvent
     data class Transcript(val text: String, val final: Boolean) : VoiceEvent
     data class ConfirmationRequested(val confirmation: VoiceToolConfirmation) : VoiceEvent
     data class ToolSettled(val callId: String, val decision: String) : VoiceEvent
@@ -100,6 +103,7 @@ internal fun decodeVoiceFrame(json: Json, raw: String): VoiceEvent? {
     val type = (root["type"] as? JsonPrimitive)?.contentOrNull ?: return null
     return when (type) {
         "ready" -> VoiceEvent.Ready
+        "flush" -> VoiceEvent.Interrupted
         "transcript" -> {
             val text = (root["text"] as? JsonPrimitive)?.contentOrNull ?: return null
             VoiceEvent.Transcript(text, (root["final"] as? JsonPrimitive)?.booleanOrNull ?: false)
@@ -170,6 +174,10 @@ class VoiceClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 decodeVoiceFrame(json, text)?.let { event ->
+                    // Handled before it is published, so playback stops on the
+                    // same turn the interruption arrives rather than a frame
+                    // later.
+                    if (event is VoiceEvent.Interrupted) flushPlayback()
                     mutableEvents.tryEmit(event)
                     if (event is VoiceEvent.Closed) stop()
                 }
@@ -296,7 +304,27 @@ class VoiceClient(
 
     private fun play(pcm: ByteArray) {
         if (pcm.isEmpty()) return
-        track?.write(pcm, 0, pcm.size)
+        // Written from the socket's reader thread rather than the main one: a
+        // blocking write on the main thread is heard as the reply stuttering
+        // every time the buffer is full.
+        track?.write(pcm, 0, pcm.size, AudioTrack.WRITE_BLOCKING)
+    }
+
+    /**
+     * Drops audio that has been queued but not yet heard.
+     *
+     * `pause` then `flush` then `play` is the order that actually clears an
+     * AudioTrack; flushing while it is playing is ignored, and the abandoned
+     * reply would resume the moment the next one arrives.
+     */
+    private fun flushPlayback() {
+        track?.let { player ->
+            runCatching {
+                player.pause()
+                player.flush()
+                player.play()
+            }
+        }
     }
 
     private fun stopAudio() {

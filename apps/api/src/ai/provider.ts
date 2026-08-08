@@ -28,6 +28,8 @@ export interface ProviderSessionOptions {
 export type ProviderEvent =
   | { readonly type: "ready" }
   | { readonly type: "audio"; readonly pcm: Uint8Array }
+  /** The person began speaking; anything already queued should be dropped. */
+  | { readonly type: "interrupted" }
   | {
       readonly type: "transcript";
       readonly text: string;
@@ -57,6 +59,19 @@ export interface RealtimeProvider {
     onEvent: (event: ProviderEvent) => void,
   ): Promise<ProviderSession>;
 }
+
+/**
+ * The assistant's voice.
+ *
+ * Fixed here rather than configured, because it is part of who the assistant is
+ * to the person talking to it: a voice that changed between deployments would
+ * make the same assistant sound like a different one.
+ *
+ * It must be one the model actually offers. An unsupported name is not ignored
+ * — the provider answers `Voice '...' is not supported` and closes the socket,
+ * so a wrong value here costs the whole session rather than falling back.
+ */
+export const QWEN_VOICE = "Tina";
 
 export interface QwenCredentials {
   readonly apiKey: string;
@@ -176,6 +191,33 @@ export class QwenRealtimeProvider implements RealtimeProvider {
             instructions: options.instructions,
             input_audio_format: "pcm16",
             output_audio_format: "pcm16",
+            // One named voice, always. Left unset the provider picks a default
+            // that can change under us, and a companion whose voice changes
+            // between sessions is not the same companion.
+            voice: QWEN_VOICE,
+            input_audio_transcription: { model: "qwen3-asr-flash-realtime" },
+            /**
+             * Turn-taking, tuned rather than defaulted.
+             *
+             * `interrupt_response` is the setting that stops two voices talking
+             * at once: without it a reply keeps playing while the next one
+             * begins. `silence_duration_ms` is the pause the model waits
+             * through before deciding a turn ended — too short and it cuts
+             * people off mid-sentence, too long and every exchange feels
+             * sluggish. 700 ms sits just past a natural breath.
+             */
+            turn_detection: {
+              type: "server_vad",
+              // Higher than the provider's default: a raised threshold is what
+              // keeps a television, a passing conversation, or someone else in
+              // the room from taking a turn. The person talking to the phone is
+              // near it and is comfortably above this; the room is not.
+              threshold: 0.65,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 700,
+              interrupt_response: true,
+              create_response: true,
+            },
             tools: options.tools.map((tool) => ({
               type: "function",
               name: tool.name,
@@ -197,6 +239,19 @@ export class QwenRealtimeProvider implements RealtimeProvider {
       }
       const type = typeof event["type"] === "string" ? event["type"] : "";
 
+      /**
+       * The user started talking over the reply.
+       *
+       * The provider stops generating, but audio already sent is sitting in the
+       * client's playback queue and will keep talking for as long as it is
+       * long. Surfacing this lets the bridge tell the client to drop it, which
+       * is the difference between an assistant that stops when interrupted and
+       * one that talks over the person interrupting it.
+       */
+      if (type === "input_audio_buffer.speech_started") {
+        onEvent({ type: "interrupted" });
+        return;
+      }
       if (
         type === "response.audio.delta" &&
         typeof event["delta"] === "string"

@@ -55,6 +55,8 @@ struct VoiceToolConfirmation: Identifiable, Sendable, Equatable {
 
 enum VoiceClientEvent: Sendable, Equatable {
     case ready
+    /// The person began speaking. Anything queued is abandoned audio.
+    case interrupted
     case transcript(text: String, final: Bool)
     case confirmationRequested(VoiceToolConfirmation)
     case toolSettled(callId: String, decision: String)
@@ -76,6 +78,8 @@ enum VoiceServerMessage {
         switch type {
         case "ready":
             return .ready
+        case "flush":
+            return .interrupted
         case "transcript":
             guard let text = object["text"] as? String else { return nil }
             return .transcript(text: text, final: object["final"] as? Bool ?? false)
@@ -222,6 +226,9 @@ actor VoiceClient {
             await audio.play(data)
         case .string(let text):
             guard let event = VoiceServerMessage.decode(text) else { return }
+            // Handled before it is published, so playback stops on the same
+            // turn the interruption arrives rather than a frame later.
+            if case .interrupted = event { await audio.flush() }
             emit(event)
             if case .closed = event { await stop() }
         @unknown default:
@@ -347,6 +354,17 @@ actor VoiceAudioIO {
         engine.detach(player)
         // Deactivating releases the microphone indicator as well as the route.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Drops audio that has been scheduled but not yet heard.
+    ///
+    /// Stopping and restarting the node is what actually clears the queue;
+    /// pausing would resume into the abandoned reply the moment the next one
+    /// arrives.
+    func flush() {
+        guard running else { return }
+        player.stop()
+        player.play()
     }
 
     func play(_ pcm: Data) {

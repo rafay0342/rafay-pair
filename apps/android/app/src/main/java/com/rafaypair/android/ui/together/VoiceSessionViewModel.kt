@@ -140,6 +140,11 @@ class VoiceSessionViewModel(
         when (event) {
             VoiceEvent.Ready -> _state.update { it.copy(phase = VoicePhase.LISTENING) }
 
+            // The audio queue is cleared by the client itself. Nothing visible
+            // changes here: an interruption is a thing that stops, not a thing
+            // that is announced.
+            VoiceEvent.Interrupted -> Unit
+
             is VoiceEvent.Transcript ->
                 // Only completed lines are kept. A partial line rewritten in
                 // place reads as the assistant changing its mind about what you

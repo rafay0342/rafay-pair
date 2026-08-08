@@ -146,6 +146,16 @@ describe("tool authorization over the socket", () => {
   });
 });
 
+describe("interruption", () => {
+  it("tells the client to drop queued audio when the person speaks", async () => {
+    const { bridge, sent } = harness(() => ({ decision: "executed" }));
+    await bridge.onProviderEvent({ type: "interrupted" });
+    // Without this the client keeps playing a reply that was abandoned, which
+    // is heard as the assistant talking over the person interrupting it.
+    expect(sent).toContainEqual({ type: "flush" });
+  });
+});
+
 describe("audio relay", () => {
   it("passes ordinary frames through and drops oversized ones", () => {
     const { bridge, provider, sent } = harness(() => ({
@@ -180,6 +190,15 @@ describe("session instructions", () => {
     memories: [],
     hasPartner: false,
   };
+
+  it("says how to speak, in behaviour a model can check itself against", () => {
+    const instructions = composeInstructions(base);
+    expect(instructions).toContain("One thought per turn");
+    expect(instructions).toContain("If they interrupt you, stop");
+    // Warmth is allowed; impersonation is not, and the line between them is
+    // written down rather than left to judgement.
+    expect(instructions).toContain("You are not their partner");
+  });
 
   it("carries the disclosure and the claims the product will not make", () => {
     const instructions = composeInstructions(base);
