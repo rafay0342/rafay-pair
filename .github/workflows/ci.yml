@@ -129,6 +129,11 @@ jobs:
       - run: pnpm --filter @rafay-pair/web typecheck
       - run: pnpm --filter @rafay-pair/web test
       - run: pnpm --filter @rafay-pair/web build
+      # Master specification §17: alert on artifact-size regression. The web
+      # job builds these three, so they are required rather than skipped.
+      - run: >-
+          node scripts/check-artifact-budgets.mjs
+          --require=web-initial-javascript,web-pose-worker,web-stylesheet
       - run: ./scripts/report-artifact-sizes.sh reports/web-artifact-sizes.tsv apps/web/dist
       - run: pnpm --filter @rafay-pair/api... build
       - run: pnpm --filter @rafay-pair/web exec playwright install --with-deps chromium webkit

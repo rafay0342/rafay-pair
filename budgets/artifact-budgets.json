@@ -1,0 +1,91 @@
+{
+  "$comment": [
+    "Master specification §17: track release artifact size on every build, set",
+    "budgets after baseline measurement, and alert on regression.",
+    "",
+    "Every baseline below was measured, not estimated — the command that",
+    "produced each artifact is recorded next to it. A ceiling is the baseline",
+    "plus the headroom named in `allowedGrowth`, chosen per artifact rather",
+    "than as one global percentage: a 5% drift in a 42 MB web bundle is two",
+    "megabytes a user waits for, while 5% of a 4 MB iOS binary is noise.",
+    "",
+    "Raising a ceiling is a deliberate act with a reason attached. That is the",
+    "point of keeping this in the repository rather than in CI configuration:",
+    "the diff shows who decided a release could get bigger, and why."
+  ],
+  "artifacts": [
+    {
+      "id": "android-apk-universal",
+      "label": "Android universal APK",
+      "path": "apps/android/app/build/outputs/apk/release/app-release.apk",
+      "baselineBytes": 126698680,
+      "allowedGrowth": 0.03,
+      "measuredOn": "2026-08-08",
+      "producedBy": "./gradlew assembleRelease",
+      "note": "Carries native libraries for all four ABIs. Play delivers from the AAB and splits per device, so this is a sideloading artifact and must not be quoted as an install size."
+    },
+    {
+      "id": "android-aab",
+      "label": "Android app bundle",
+      "path": "apps/android/app/build/outputs/bundle/release/app-release.aab",
+      "baselineBytes": 51739766,
+      "allowedGrowth": 0.03,
+      "measuredOn": "2026-08-08",
+      "producedBy": "./gradlew bundleRelease",
+      "note": "What Play actually receives. A per-device download is a fraction of this."
+    },
+    {
+      "id": "web-initial-javascript",
+      "label": "Web initial JavaScript",
+      "paths": [
+        "apps/web/dist/assets/index-*.js",
+        "apps/web/dist/assets/react-*.js"
+      ],
+      "baselineBytes": 387174,
+      "allowedGrowth": 0.05,
+      "measuredOn": "2026-08-08",
+      "producedBy": "pnpm --filter @rafay-pair/web build",
+      "note": "What a first paint needs. The pose worker is excluded deliberately: it is fetched only when someone opens Move."
+    },
+    {
+      "id": "web-pose-worker",
+      "label": "Web pose worker",
+      "paths": ["apps/web/dist/assets/poseWorker-*.js"],
+      "baselineBytes": 155176,
+      "allowedGrowth": 0.05,
+      "measuredOn": "2026-08-08",
+      "producedBy": "pnpm --filter @rafay-pair/web build"
+    },
+    {
+      "id": "web-stylesheet",
+      "label": "Web stylesheet",
+      "paths": ["apps/web/dist/assets/index-*.css"],
+      "baselineBytes": 33145,
+      "allowedGrowth": 0.1,
+      "measuredOn": "2026-08-08",
+      "producedBy": "pnpm --filter @rafay-pair/web build"
+    },
+    {
+      "id": "web-wasm-runtime",
+      "label": "Web WASM runtime",
+      "path": "apps/web/dist/models/mediapipe/wasm",
+      "baselineBytes": 35444140,
+      "allowedGrowth": 0.02,
+      "measuredOn": "2026-08-08",
+      "producedBy": "scripts/fetch-pose-model.mjs, run by the Web build",
+      "note": "Runtime-cached on first use rather than precached, so it is not paid at install. Pinned by digest, so growth here means the pinned runtime changed."
+    }
+  ],
+  "unbudgeted": {
+    "$comment": [
+      "Named so their absence is a recorded decision rather than an oversight.",
+      "Each needs something CI does not have, and each says what that is."
+    ],
+    "ios-ipa": "Needs a signed archive. A personal Apple team cannot sign this app's entitlements, so no IPA has been produced yet to measure. The unsigned Release .app bundle is 4.4 MB; a budget waits for the real artifact.",
+    "cold-start": "Needs a physical device. A simulator's launch time measures this Mac.",
+    "warm-start": "Needs a physical device, for the same reason.",
+    "memory": "Needs a device run with the camera and the estimators live; a headless number would describe nothing users experience.",
+    "cpu-gpu-thermal-battery": "Needs sustained on-device capture. These move together under a real workout and are meaningless sampled apart from one.",
+    "network-usage": "Needs a paired session on a device. The realtime path is event-driven, so a synthetic number would not resemble a real pairing."
+  }
+}

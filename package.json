@@ -19,7 +19,8 @@
     "test:integration": "pnpm -r --if-present test:integration",
     "typecheck": "pnpm -r --if-present typecheck",
     "verify": "pnpm run format:check && pnpm run verify:invariants && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
-    "verify:invariants": "node scripts/verify-capture-invariants.mjs"
+    "verify:invariants": "node scripts/verify-capture-invariants.mjs",
+    "verify:budgets": "node scripts/check-artifact-budgets.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.6"

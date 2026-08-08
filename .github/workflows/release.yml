@@ -459,6 +459,13 @@ jobs:
           else
             ./gradlew --configuration-cache lintStaging testDebugUnitTest assembleStaging
           fi
+      # Master specification §17: alert on artifact-size regression. Required
+      # rather than skipped, because this job is the one that built them.
+      - name: Check Android artifacts against their size budgets
+        if: inputs.environment == 'production'
+        run: >-
+          node scripts/check-artifact-budgets.mjs
+          --require=android-apk-universal,android-aab
         env:
           RELEASE_ENVIRONMENT: ${{ inputs.environment }}
           RAFAYPAIR_ANDROID_VERSION_CODE: ${{ github.run_number }}
