@@ -17,7 +17,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "jose": "6.2.8"
+    "jose": "6.2.12"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
