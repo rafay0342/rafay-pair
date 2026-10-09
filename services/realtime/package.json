@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@rafay-pair/api-contracts": "workspace:*",
-    "redis": "6.2.0"
+    "redis": "6.3.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
