@@ -26,8 +26,8 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@redocly/cli": "2.45.0",
+    "@redocly/cli": "2.65.1",
     "typescript": "7.0.2",
-    "vitest": "4.1.10"
+    "vitest": "5.0.5"
   }
 }
